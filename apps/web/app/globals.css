@@ -23,3 +23,16 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Shared form controls (Tailwind v4 custom utilities). */
+@utility field {
+  @apply rounded-xl border-2 border-foreground/20 bg-transparent px-4 py-3 outline-none focus:border-foreground;
+}
+
+@utility btn-primary {
+  @apply rounded-xl bg-violet-600 px-4 py-3 text-lg font-bold text-white hover:bg-violet-700 disabled:opacity-40 disabled:hover:bg-violet-600;
+}
+
+@utility btn-secondary {
+  @apply rounded-xl border-2 border-foreground/20 px-4 py-3 text-lg font-bold hover:bg-foreground/5;
+}

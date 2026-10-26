@@ -10,7 +10,7 @@ export function JoinForm() {
 
   return (
     <form
-      className="flex w-full max-w-xs flex-col gap-3"
+      className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (code.length === CODE_LENGTH) router.push(`/play/${code}`);
@@ -18,7 +18,7 @@ export function JoinForm() {
     >
       <input
         aria-label="Lobby code"
-        className="rounded-xl border-2 border-foreground/20 bg-transparent px-4 py-3 text-center font-mono text-3xl uppercase tracking-[0.5em] outline-none focus:border-foreground"
+        className="field text-center font-mono text-3xl uppercase tracking-[0.5em]"
         placeholder="CODE"
         value={code}
         onChange={(e) => setCode(normalizeCode(e.target.value))}
@@ -28,9 +28,9 @@ export function JoinForm() {
       <button
         type="submit"
         disabled={code.length !== CODE_LENGTH}
-        className="rounded-xl bg-foreground px-4 py-3 text-lg font-bold text-background disabled:opacity-40"
+        className="btn-primary"
       >
-        Join
+        Join game
       </button>
     </form>
   );

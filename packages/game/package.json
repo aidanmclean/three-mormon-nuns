@@ -11,7 +11,11 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "fast-check": "^4.10.2",
     "typescript": "^7",
     "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
   }
 }

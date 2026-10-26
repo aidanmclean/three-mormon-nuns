@@ -7,7 +7,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "types": "wrangler types --include-runtime=false",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "e2e": "node scripts/e2e-lobby.mjs"
   },
   "dependencies": {
     "@tmn/game": "workspace:*",

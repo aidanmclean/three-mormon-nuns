@@ -32,7 +32,7 @@ pnpm dev
 - web app on http://localhost:3000
 - lobby Worker on http://localhost:8787
 
-Enter any 4-letter code to join a lobby, then open the same code in a second tab to watch the player count update live.
+On the computer you'll use as the shared screen, click **Host a new game**: it becomes the host screen and shows a 4-letter code. Join that code from phones, or from private windows (a normal second tab shares your session). The first player to join is the **game master** and controls the game from their phone.
 
 No Cloudflare account is needed for local development; Wrangler runs Durable Objects locally.
 
@@ -50,6 +50,7 @@ No Cloudflare account is needed for local development; Wrangler runs Durable Obj
 | `pnpm format`                     | Biome auto-fix + format                                          |
 | `pnpm --filter @tmn/party types`  | Regenerate the Worker `Env` types after editing `wrangler.jsonc` |
 | `pnpm --filter @tmn/party deploy` | Deploy the lobby Worker to Cloudflare                            |
+| `pnpm --filter @tmn/party e2e`    | WebSocket end-to-end checks against the running dev worker       |
 
 ## Layout
 

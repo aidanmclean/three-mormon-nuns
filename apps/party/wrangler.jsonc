@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "three-mormon-nuns-party",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-20",
+  "dev": {
+    "port": 8787
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "Lobby", "class_name": "Lobby" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Lobby"] }]
+}

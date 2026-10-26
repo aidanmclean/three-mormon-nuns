@@ -1,0 +1,21 @@
+{
+  "name": "@tmn/party",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types --include-runtime=false",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tmn/game": "workspace:*",
+    "partyserver": "^0.5.10"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261025.1",
+    "typescript": "^7",
+    "wrangler": "^4.152.0"
+  }
+}

@@ -4,6 +4,7 @@ Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE
 
 ## 2026-10-26
 
+- **Fixed:** tabs hanging on "connecting…" and `EADDRINUSE` when starting the worker separately. The dev worker now listens on `0.0.0.0`, the client derives the party host from the page hostname, and Next allows LAN dev origins. The phone-testing docs were corrected ([D12](./ARCHITECTURE.md#d12-dev-servers-are-reachable-from-the-lan-with-zero-config)).
 - **Docs:** corrected the Cavan role. Cavan is the _moderated_ player, and the game master approves or rejects every phrase Cavan submits. Updated roles, views, actions and moderation config (`off | cavan | all`).
 - **Docs:** designed disconnect detection with heartbeats and a presence sweep. Inactive players' turns are skipped; covers mid-turn drops and role handoff ([D8](./ARCHITECTURE.md#d8-presence-uses-client-heartbeats-and-a-server-sweep-inactive-players-are-skipped)).
 - **Docs:** designed rejoin by entering the same name, plus a session token for seamless reconnects ([D7](./ARCHITECTURE.md#d7-identity-is-your-name-within-a-lobby-plus-a-device-token-for-seamless-reconnects), revised).

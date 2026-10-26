@@ -36,6 +36,8 @@ Enter any 4-letter code to join a lobby, then open the same code in a second tab
 
 No Cloudflare account is needed for local development; Wrangler runs Durable Objects locally.
 
+**On phones:** with `pnpm dev` running, open `http://<your computer's LAN IP>:3000` on any phone on the same Wi-Fi. No extra config is needed. Don't start the worker separately, because `pnpm dev` already runs it.
+
 ## Scripts
 
 | Command                           | Does                                                             |

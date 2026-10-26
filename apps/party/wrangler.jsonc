@@ -3,7 +3,9 @@
   "name": "three-mormon-nuns-party",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-20",
+  // Listen on all interfaces so phones on the LAN can reach the dev worker.
   "dev": {
+    "ip": "0.0.0.0",
     "port": 8787
   },
   "durable_objects": {

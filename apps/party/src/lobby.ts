@@ -139,7 +139,7 @@ export class Lobby extends Server<Env> {
           "That lobby code is already in use.",
         );
       return this.commit(
-        this.guard(() => createLobby(this.name, this.ctxFor(null))),
+        this.guard(() => createLobby(this.name, this.ctxFor(null), msg.config)),
         conn,
       );
     }
@@ -174,6 +174,7 @@ export class Lobby extends Server<Env> {
       await this.transition({ type: "_touch" }, null);
     }
     await this.sweepPresence(now);
+    await this.transition({ type: "_draftTick" }, null);
     await this.scheduleAlarm();
   }
 
@@ -253,12 +254,7 @@ export class Lobby extends Server<Env> {
           connectedAt: from.state?.connectedAt ?? Date.now(),
         });
         this.send(from, { type: "joined", as: "screen", token: effect.token });
-        // One host screen at a time: a reopened screen replaces the old one.
-        for (const conn of this.getConnections<SocketState>()) {
-          if (conn.id === from.id || !conn.state?.screen) continue;
-          this.send(conn, { type: "bye", reason: "replaced" });
-          conn.close(4003, "replaced");
-        }
+        // Read-only host mirrors may coexist. Player sockets still use newest-wins.
       }
       if (effect.type === "kicked") this.closePlayer(effect.playerId, "kicked");
     }
@@ -282,7 +278,12 @@ export class Lobby extends Server<Env> {
   }
 
   private ctxFor(actorId: PlayerId | null) {
-    return { actorId, now: Date.now(), newId: () => crypto.randomUUID() };
+    return {
+      actorId,
+      now: Date.now(),
+      newId: () => crypto.randomUUID(),
+      rng: Math.random,
+    };
   }
 
   /** Marks players active or inactive from their sockets' heartbeats (D8, D15). */
@@ -339,7 +340,13 @@ export class Lobby extends Server<Env> {
       hasSockets || anyActive
         ? Date.now() + PRESENCE_SWEEP_MS
         : Number.POSITIVE_INFINITY;
-    await this.ctx.storage.setAlarm(Math.min(this.lobby.expiresAt, sweep));
+    await this.ctx.storage.setAlarm(
+      Math.min(
+        this.lobby.expiresAt,
+        sweep,
+        this.lobby.draft?.nextAt ?? Number.POSITIVE_INFINITY,
+      ),
+    );
   }
 
   private async expire() {

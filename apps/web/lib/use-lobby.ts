@@ -4,6 +4,7 @@ import {
   type ByeReason,
   type ClientMessage,
   HEARTBEAT_INTERVAL_MS,
+  LOBBY_RESPONSE_TIMEOUT_MS,
   type LobbyView,
   PARTY,
   PROTOCOL_VERSION,
@@ -21,6 +22,7 @@ import {
   loadSession,
   saveScreen,
   saveSession,
+  testDevice,
 } from "./session";
 
 export type LobbyStatus =
@@ -33,7 +35,7 @@ export type LobbyStatus =
   | "notHost"
   | "gone";
 
-/** Actions the game master's UI sends; create/join/screen are sent by the hook itself. */
+/** Actions joined players send; create/join/screen are sent by the hook itself. */
 export type LobbyAction = Exclude<
   ClientMessage,
   { type: "create" } | { type: "join" } | { type: "screen" }
@@ -52,10 +54,14 @@ export function useLobby(
 ) {
   const [status, setStatus] = useState<LobbyStatus>("connecting");
   const [view, setView] = useState<LobbyView | null>(null);
+  const [clockOffset, setClockOffset] = useState(0);
   const [connected, setConnected] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [goneReason, setGoneReason] = useState<ByeReason | null>(null);
+  const [startupError, setStartupError] = useState<string | null>(null);
+  const [timedOutAttempt, setTimedOutAttempt] = useState<number | null>(null);
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const lastPong = useRef(0);
   // Read inside socket handlers, so a ref rather than state avoids stale closures.
   const joined = useRef(false);
@@ -98,7 +104,10 @@ export function useLobby(
     if (role === "screen") {
       const screen = loadScreen(code);
       const msg: ClientMessage | null = screen?.creating
-        ? { type: "create" }
+        ? {
+            type: "create",
+            ...(screen.config ? { config: screen.config } : {}),
+          }
         : screen?.token
           ? { type: "screen", token: screen.token }
           : null;
@@ -134,12 +143,14 @@ export function useLobby(
             token: msg.token,
           });
         setNameError(null);
+        setStartupError(null);
         joined.current = true;
         setStatus("joined");
         return;
       }
       case "state":
         setView(msg.view);
+        setClockOffset(msg.now - Date.now());
         return;
       case "bye":
         setGoneReason(msg.reason);
@@ -168,7 +179,13 @@ export function useLobby(
           socket.close();
           return;
         }
-        // Errors while joining are about the name; show them on the form.
+        // Screens have no name form: creation/storage/validation errors must
+        // be visible on the connection screen instead of leaving it spinning.
+        if (role === "screen" && !joined.current) {
+          setStartupError(msg.message);
+          return;
+        }
+        // Player errors while joining are about the name; show them on the form.
         if (
           !joined.current &&
           ["NAME_TAKEN", "INVALID", "LOBBY_FULL"].includes(msg.code)
@@ -181,6 +198,47 @@ export function useLobby(
         return;
     }
   }
+
+  const awaitingLobby =
+    status === "connecting" ||
+    status === "joining" ||
+    (status === "joined" && !view);
+  useEffect(() => {
+    // An explicit retry starts a new grace period. Reconnect attempts do not:
+    // repeated socket opens without a lobby reply must still time out.
+    setTimedOutAttempt(null);
+    if (!awaitingLobby) return;
+    const timeout = setTimeout(
+      () => setTimedOutAttempt(connectionAttempt),
+      LOBBY_RESPONSE_TIMEOUT_MS,
+    );
+    return () => clearTimeout(timeout);
+  }, [awaitingLobby, connectionAttempt]);
+
+  const retryConnection = () => {
+    setStartupError(null);
+    setTimedOutAttempt(null);
+    setConnectionAttempt((attempt) => attempt + 1);
+    socket.reconnect();
+  };
+
+  useEffect(() => {
+    const device = testDevice();
+    if (!device || window.parent === window) return;
+    const me = view?.players.find((p) => p.id === view.you);
+    window.parent.postMessage(
+      {
+        type: "tmn:test-device",
+        device,
+        status,
+        connected,
+        phase: view?.phase ?? null,
+        name: me?.name ?? null,
+        isGamemaster: me?.isGamemaster ?? false,
+      },
+      window.location.origin,
+    );
+  }, [view, status, connected]);
 
   // Heartbeat (D8): ping every few seconds; if pongs stop, force a reconnect.
   useEffect(() => {
@@ -219,10 +277,17 @@ export function useLobby(
   return {
     status,
     view,
+    clockOffset,
     connected,
     nameError,
     notice,
     goneReason,
+    connectionIssue:
+      startupError ??
+      (timedOutAttempt === connectionAttempt
+        ? "The game server isn’t responding. We’ll keep trying to connect."
+        : null),
+    retryConnection,
     submitName,
     send,
   };

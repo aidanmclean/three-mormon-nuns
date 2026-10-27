@@ -1,16 +1,19 @@
 import { isValidCode } from "./code";
-import { ConfigSchema, DEFAULT_CONFIG } from "./config";
+import { type Config, ConfigSchema, DEFAULT_CONFIG } from "./config";
 import { IDLE_EXPIRY_MS, SCHEMA_VERSION } from "./constants";
+import { advanceDraft, changeTeam, startDraft } from "./draft";
 import { nameKey, validateName } from "./names";
+import { phraseAction } from "./phrases";
 import type { ClientMessage, ErrorCode } from "./protocol";
-import type { LobbyState, Phase, Player, PlayerId } from "./types";
+import type { LobbyState, Player, PlayerId } from "./types";
 
 /** Actions only the server shell issues. They aren't in ClientMessage, so clients can't send them. */
 export type ServerAction =
   /** Presence transitions computed from socket heartbeats (D15). */
   | { type: "_presence"; active: PlayerId[]; inactive: PlayerId[] }
   /** Extends expiry while people are still connected. */
-  | { type: "_touch" };
+  | { type: "_touch" }
+  | { type: "_draftTick" };
 
 export type Action = Exclude<ClientMessage, { type: "create" }> | ServerAction;
 
@@ -20,6 +23,8 @@ export interface Ctx {
   now: number;
   /** Fresh random id (player ids, tokens). Injected for deterministic tests. */
   newId: () => string;
+  /** Server-owned randomness; tests can supply a deterministic source. */
+  rng?: () => number;
 }
 
 /** Side effects the shell must carry out (it owns the sockets). */
@@ -46,26 +51,35 @@ const done = (state: LobbyState, effects: Effect[] = []): Result => ({
 const byJoinOrder = (a: Player, b: Player) =>
   a.joinedAt - b.joinedAt || a.id.localeCompare(b.id);
 
-/** Phases in which the game master may still change who Cavan is. */
-const CAVAN_PHASES: Phase[] = ["lobby", "teams", "writing"];
-
 /**
  * Called by the host screen (D18). The lobby starts with no players; the
  * first player to join becomes game master.
  */
-export function createLobby(code: string, ctx: Ctx): Result {
+export function createLobby(
+  code: string,
+  ctx: Ctx,
+  config: Config = DEFAULT_CONFIG,
+): Result {
   if (!isValidCode(code))
     return fail("INVALID", "That isn't a valid lobby code.");
+  const parsed = ConfigSchema.safeParse(config);
+  if (!parsed.success || parsed.data.teamCount > parsed.data.maxPlayers)
+    return fail("INVALID", "Choose valid settings with room for every team.");
   const screenToken = ctx.newId();
   return done(
     {
       schemaVersion: SCHEMA_VERSION,
       code,
       phase: "lobby",
-      config: { ...DEFAULT_CONFIG },
+      config: parsed.data,
       players: {},
+      teams: {},
+      teamOrder: [],
+      lastDraw: null,
+      draft: null,
+      phrases: {},
       screenToken,
-      roles: { gamemasterId: null, cavanId: null },
+      roles: { gamemasterId: null },
       createdAt: ctx.now,
       expiresAt: ctx.now + IDLE_EXPIRY_MS,
     },
@@ -80,7 +94,7 @@ export function createLobby(code: string, ctx: Ctx): Result {
 export function reduce(state: LobbyState, action: Action, ctx: Ctx): Result {
   const result = apply(state, action, ctx);
   if (!result.ok || result.state === state) return result;
-  let next = normalizeRoles(result.state);
+  let next = normalizeRoles(normalizeTeams(result.state));
   // Presence sweeps run every few seconds and shouldn't count as activity.
   if (action.type !== "_presence")
     next = { ...next, expiresAt: ctx.now + IDLE_EXPIRY_MS };
@@ -91,6 +105,8 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
   switch (action.type) {
     case "_presence":
       return presence(state, action.active, action.inactive);
+    case "_draftTick":
+      return advanceDraft(state, ctx);
     case "_touch":
       return done({ ...state });
     case "join":
@@ -100,7 +116,7 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       if (action.token !== state.screenToken) {
         return fail(
           "FORBIDDEN",
-          "This lobby is being hosted on another screen.",
+          "This browser does not have the host key for this room.",
         );
       }
       // Re-binding the screen isn't a state change; the effect is all that matters.
@@ -111,10 +127,17 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       };
   }
 
-  // Everything below needs a joined player, taken from the socket binding (§6.3),
-  // and that player must be the game master: the GM controls the game (D18).
+  // Player identity comes from the socket binding (§6.3). Team actions have
+  // player/captain permissions (D22); remaining controls belong to the GM.
   const actor = ctx.actorId === null ? undefined : state.players[ctx.actorId];
   if (!actor) return fail("NOT_JOINED", "Join the lobby first.");
+  if (actor.status !== "active")
+    return fail("FORBIDDEN", "Reconnect before making changes.");
+  if (["nameTeam", "addToTeam", "removeFromTeam"].includes(action.type)) {
+    return changeTeam(state, action, actor);
+  }
+  if (action.type === "submitPhrase" || action.type === "deletePhrase")
+    return phraseAction(state, action, actor, ctx);
   if (actor.id !== state.roles.gamemasterId) {
     return fail("FORBIDDEN", "Only the game master can do that.");
   }
@@ -130,10 +153,38 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       if (!parsed.success)
         return fail("INVALID", "Those settings are out of range.");
       const config = parsed.data;
+      if (config.teamCount > config.maxPlayers)
+        return fail("INVALID", "There must be room for every team.");
       if (Object.keys(state.players).length > config.maxPlayers) {
         return fail("INVALID", "There are already more players than that.");
       }
       return done({ ...state, config });
+    }
+    case "startTeams":
+      return startDraft(state, ctx);
+    case "confirmTeams": {
+      if (state.phase !== "teams")
+        return fail("WRONG_PHASE", "Select teams first.");
+      if (state.draft?.stage !== "complete")
+        return fail("INVALID", "Wait for the wheel to finish.");
+      if (state.teamOrder.some((id) => !state.teams[id]?.nameConfirmed))
+        return fail("INVALID", "Every captain must save a team name first.");
+      if (
+        Object.values(state.players).some(
+          (p) => p.status === "active" && !p.waiting && !p.teamId,
+        ) ||
+        state.teamOrder.some(
+          (id) =>
+            !state.teams[id]?.memberIds.some(
+              (pid) => state.players[pid]?.status === "active",
+            ),
+        )
+      )
+        return fail(
+          "INVALID",
+          "Give every connected player a team, with someone connected on every team.",
+        );
+      return done({ ...state, phase: "writing", lastDraw: null });
     }
     case "kick": {
       const target = state.players[action.playerId];
@@ -142,8 +193,12 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
         return fail("INVALID", "You can't kick yourself.");
       const { [target.id]: _removed, ...players } = state.players;
       const roles = { ...state.roles };
-      if (roles.cavanId === target.id) roles.cavanId = null;
-      return done({ ...state, players, roles }, [
+      const phrases = Object.fromEntries(
+        Object.entries(state.phrases).filter(
+          ([, p]) => p.authorId !== target.id,
+        ),
+      );
+      return done({ ...state, players, roles, phrases }, [
         { type: "kicked", playerId: target.id },
       ]);
     }
@@ -167,22 +222,8 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
         roles: { ...state.roles, gamemasterId: target.id },
       });
     }
-    case "setCavan": {
-      if (!CAVAN_PHASES.includes(state.phase)) {
-        return fail(
-          "WRONG_PHASE",
-          "Cavan can't be changed once the game starts.",
-        );
-      }
-      if (action.playerId !== null && !state.players[action.playerId]) {
-        return fail("INVALID", "That player isn't in the lobby.");
-      }
-      return done({
-        ...state,
-        roles: { ...state.roles, cavanId: action.playerId },
-      });
-    }
   }
+  return fail("INVALID", "Unknown action.");
 }
 
 /** Join rules, in order (§5.6): token → inactive name → active name → new player. */
@@ -259,18 +300,16 @@ function presence(
 function normalizeRoles(state: LobbyState): LobbyState {
   const everyone = Object.values(state.players).sort(byJoinOrder);
   const firstActive = everyone.find((p) => p.status === "active");
-  let { gamemasterId, cavanId } = state.roles;
+  let { gamemasterId } = state.roles;
 
   const gm = gamemasterId === null ? undefined : state.players[gamemasterId];
   if (!gm || (gm.status !== "active" && firstActive)) {
     gamemasterId = firstActive?.id ?? everyone[0]?.id ?? null;
   }
-  if (cavanId !== null && !state.players[cavanId]) cavanId = null;
 
   const { roles } = state;
-  if (gamemasterId === roles.gamemasterId && cavanId === roles.cavanId)
-    return state;
-  return { ...state, roles: { gamemasterId, cavanId } };
+  if (gamemasterId === roles.gamemasterId) return state;
+  return { ...state, roles: { gamemasterId } };
 }
 
 function newPlayer(name: string, ctx: Ctx, waiting: boolean): Player {
@@ -298,4 +337,38 @@ function findByName(
   return Object.values(state.players).find(
     (p) => p.id !== exceptId && nameKey(p.name) === key,
   );
+}
+
+/** Membership has one source of truth; derive lists and repair captains after kicks/moves. */
+function normalizeTeams(state: LobbyState): LobbyState {
+  let changed = false;
+  const teams = { ...state.teams };
+  for (const id of state.teamOrder) {
+    const team = teams[id];
+    if (!team) continue;
+    const members = Object.values(state.players)
+      .filter((p) => p.teamId === id)
+      .sort(byJoinOrder);
+    const memberIds = [
+      ...team.memberIds.filter((pid) => members.some((p) => p.id === pid)),
+      ...members.filter((p) => !team.memberIds.includes(p.id)).map((p) => p.id),
+    ];
+    const orderedMembers = memberIds.flatMap((pid) =>
+      state.players[pid] ? [state.players[pid]] : [],
+    );
+    const captainId =
+      members.find((p) => p.id === team.captainId && p.status === "active")
+        ?.id ??
+      orderedMembers.find((p) => p.status === "active")?.id ??
+      orderedMembers[0]?.id ??
+      null;
+    if (
+      captainId !== team.captainId ||
+      memberIds.join(",") !== team.memberIds.join(",")
+    ) {
+      teams[id] = { ...team, captainId, memberIds };
+      changed = true;
+    }
+  }
+  return changed ? { ...state, teams } : state;
 }

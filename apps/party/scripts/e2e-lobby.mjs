@@ -1,10 +1,10 @@
 // End-to-end check of the Lobby worker over real WebSockets.
 // Run against a dev worker:  pnpm dev   (then, in another terminal)
 //                            pnpm --filter @tmn/party e2e
-// Takes ~30 s because it waits for a silent client to be marked inactive.
+// Takes ~40 s because it waits for a silent client to be marked inactive.
 
 const HOST = process.env.PARTY_HOST ?? "localhost:8787";
-const V = 3; // keep in sync with PROTOCOL_VERSION in packages/game
+const V = 5; // keep in sync with PROTOCOL_VERSION in packages/game
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const code = Array.from(
   { length: 4 },
@@ -12,7 +12,9 @@ const code = Array.from(
 ).join("");
 
 let failures = 0;
+let checks = 0;
 const check = (cond, label) => {
+  checks++;
   console.log(`${cond ? "✓" : "✗"} ${label}`);
   if (!cond) failures++;
 };
@@ -104,6 +106,11 @@ check(
 
 // Joining a lobby that doesn't exist
 const early = await new Client("early").open();
+early.send({ type: "create", config: { roundLengthSec: 999 } });
+check(
+  await early.waitFor(isError("BAD_MESSAGE")),
+  "invalid creation settings rejected before creating a room",
+);
 early.send({ type: "join", name: "Early" });
 check(
   await early.waitFor(isError("LOBBY_NOT_FOUND")),
@@ -113,16 +120,29 @@ early.close();
 
 // The host screen creates the lobby; it is not a player (D18)
 const screen = await new Client("screen").open();
-screen.send({ type: "create" });
+screen.send({
+  type: "create",
+  config: {
+    roundLengthSec: 75,
+    teamCount: 2,
+    maxPlayers: 20,
+    phrasesPerPlayer: 4,
+    maxWordsPerPhrase: 3,
+    profanityFilter: "off",
+  },
+});
 const screenJoined = await screen.waitFor(
   (m) => m.type === "joined" && m.as === "screen",
 );
 check(screenJoined, "screen create → joined as screen");
+const initial = await screen.waitFor(
+  stateWhere((v) => v.players.length === 0 && v.you === null),
+);
+check(initial, "screen sees an empty lobby");
 check(
-  await screen.waitFor(
-    stateWhere((v) => v.players.length === 0 && v.you === null),
-  ),
-  "screen sees an empty lobby",
+  initial?.view.config.roundLengthSec === 75 &&
+    initial?.view.config.phrasesPerPlayer === 4,
+  "first view already has the host's creation settings",
 );
 
 const again = await new Client("again").open();
@@ -223,7 +243,7 @@ for (let i = 0; i < 40; i++) spam.send("{}");
 check(await spam.waitFor(isError("RATE_LIMITED")), "flooding → RATE_LIMITED");
 spam.close();
 
-// Screen reconnect: newest screen wins
+// Multiple read-only host mirrors share the same token.
 const screen2 = await new Client("screen2").open();
 screen2.send({ type: "screen", token: screenJoined.token });
 check(
@@ -235,10 +255,9 @@ check(
   "reconnected screen gets the current state",
 );
 check(
-  await screen.waitFor((m) => m.type === "bye" && m.reason === "replaced"),
-  "old screen told it was replaced",
+  screen.closed === null,
+  "original host stays connected when a mirror opens",
 );
-screen.close();
 
 // Token reconnect: newest socket wins
 const alex2 = await new Client("alex2").open();
@@ -284,6 +303,171 @@ check(
   "rejoined player active again; GM stays with Alex",
 );
 
+// Everyone's in: the server runs every spin through its alarm.
+hazelPhone2.send({ type: "startTeams" });
+check(
+  await hazelPhone2.waitFor(isError("FORBIDDEN")),
+  "only the GM can press Everyone's in",
+);
+hazelPhone2.send({ type: "setCavan", playerId: hazelJoined.playerId });
+check(
+  await hazelPhone2.waitFor(isError("BAD_MESSAGE")),
+  "removed special role is rejected at the boundary",
+);
+alex2.send({ type: "startTeams" });
+check(
+  await screen2.waitFor(
+    stateWhere(
+      (v) =>
+        v.phase === "teams" &&
+        v.draft?.stage === "spinning" &&
+        v.lastDraw?.candidates.length === 2,
+    ),
+  ),
+  "everyone's in starts a timed wheel with the eligible names",
+);
+check(
+  await screen.waitFor(stateWhere((v) => v.phase === "teams")),
+  "original host mirror receives the live draft",
+);
+alex2.send({ type: "confirmTeams" });
+check(
+  await alex2.waitFor(isError("INVALID")),
+  "writing cannot start during wheel assignment",
+);
+const late = await new Client("late").open();
+late.send({ type: "join", name: "Late" });
+const lateJoined = await late.waitFor((m) => m.type === "joined");
+check(
+  await screen2.waitFor(
+    stateWhere((v) =>
+      v.players.some((p) => p.id === lateJoined?.playerId && p.waiting),
+    ),
+  ),
+  "a newcomer waits after Everyone's in",
+);
+const finished = await screen2.waitFor(
+  stateWhere((v) => v.draft?.stage === "complete"),
+  18000,
+);
+check(
+  finished?.view.teams.every(
+    (team) =>
+      team.memberIds.length === 1 && team.captainId === team.memberIds[0],
+  ),
+  "alarms complete the balanced draft and appoint first-drawn captains",
+);
+alex2.send({ type: "confirmTeams" });
+check(
+  await alex2.waitFor(isError("INVALID")),
+  "every team needs an explicitly saved name",
+);
+for (const [i, team] of (finished?.view.teams ?? []).entries()) {
+  const captain = team.captainId === alexJoined.playerId ? alex2 : hazelPhone2;
+  captain.send({
+    type: "nameTeam",
+    teamId: team.id,
+    name: i === 0 ? "Team One" : "Team Two",
+  });
+}
+check(
+  await screen2.waitFor(
+    stateWhere((v) => v.teams.every((t) => t.nameConfirmed)),
+  ),
+  "captains save their team names on their own phones",
+);
+hazelPhone2.send({
+  type: "addToTeam",
+  teamId: "team-1",
+  playerId: alexJoined.playerId,
+});
+check(
+  await hazelPhone2.waitFor(isError("FORBIDDEN")),
+  "a captain cannot move players",
+);
+const hazelTeam = finished?.view.players.find(
+  (p) => p.id === hazelJoined.playerId,
+)?.teamId;
+const alexTeam = finished?.view.players.find(
+  (p) => p.id === alexJoined.playerId,
+)?.teamId;
+alex2.send({
+  type: "addToTeam",
+  teamId: alexTeam,
+  playerId: hazelJoined.playerId,
+});
+check(
+  await screen2.waitFor(
+    stateWhere((v) => v.teams.some((t) => t.memberIds.length === 2)),
+  ),
+  "GM can manually change the wheel's assignments",
+);
+alex2.send({ type: "confirmTeams" });
+check(
+  await alex2.waitFor(isError("INVALID")),
+  "GM cannot continue with an empty team",
+);
+alex2.send({
+  type: "addToTeam",
+  teamId: hazelTeam,
+  playerId: hazelJoined.playerId,
+});
+hazelPhone2.send({ type: "confirmTeams" });
+check(
+  await hazelPhone2.waitFor(isError("FORBIDDEN")),
+  "only GM can start writing",
+);
+alex2.send({ type: "kick", playerId: lateJoined.playerId });
+check(
+  await late.waitFor((m) => m.type === "bye" && m.reason === "kicked"),
+  "GM can remove a waiting player",
+);
+late.close();
+alex2.send({ type: "confirmTeams" });
+check(
+  await screen2.waitFor(stateWhere((v) => v.phase === "writing")),
+  "named and assigned teams advance to real phrase writing",
+);
+hazelPhone2.send({ type: "submitPhrase", text: "Secret flying toaster" });
+const own = await hazelPhone2.waitFor(
+  stateWhere((v) => v.ownPhrases?.length === 1),
+);
+check(
+  own?.view.ownPhrases[0]?.text === "Secret flying toaster",
+  "author sees their own submitted phrase",
+);
+const publicView = await screen2.waitFor(
+  stateWhere((v) =>
+    v.players.some((p) => p.id === hazelJoined.playerId && p.phraseCount === 1),
+  ),
+);
+check(
+  publicView &&
+    !JSON.stringify(publicView.view).includes("Secret flying toaster"),
+  "host gets counts and never the hidden phrase",
+);
+const gmView = await alex2.waitFor(
+  stateWhere((v) =>
+    v.players.some((p) => p.id === hazelJoined.playerId && p.phraseCount === 1),
+  ),
+);
+check(
+  gmView && !JSON.stringify(gmView.view).includes("Secret flying toaster"),
+  "GM cannot see somebody else's phrase either",
+);
+alex2.send({ type: "deletePhrase", phraseId: own.view.ownPhrases[0].id });
+check(
+  await alex2.waitFor(isError("FORBIDDEN")),
+  "GM cannot delete another player's phrase",
+);
+hazelPhone2.send({ type: "deletePhrase", phraseId: own.view.ownPhrases[0].id });
+check(
+  await hazelPhone2.waitFor(
+    stateWhere((v) => v.phase === "writing" && v.ownPhrases.length === 0),
+  ),
+  "author can remove and replace their phrase",
+);
+
 // Kick (by the new GM)
 alex2.send({ type: "kick", playerId: hazelJoined.playerId });
 check(
@@ -297,8 +481,11 @@ check(
 );
 
 alex2.close();
+screen.close();
 screen2.close();
 stale.close();
 await sleep(100);
-console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);
+console.log(
+  failures === 0 ? `\nALL ${checks} CHECKS PASSED` : `\n${failures} FAILED`,
+);
 process.exit(failures === 0 ? 0 : 1);

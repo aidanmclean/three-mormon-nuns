@@ -7,6 +7,8 @@ import {
   validateName,
 } from "@tmn/game";
 import { useState } from "react";
+import { Masthead, NunIllustration } from "@/app/brand";
+import { LobbyConnection } from "@/app/lobby-connection";
 import { Message } from "@/app/message";
 import { loadSession } from "@/lib/session";
 import { useLobby } from "@/lib/use-lobby";
@@ -48,7 +50,7 @@ function Body({
   switch (lobby.status) {
     case "connecting":
     case "joining":
-      return <Message title="Connecting…" />;
+      return <LobbyConnection lobby={lobby} />;
     case "needName":
       return (
         <NameForm
@@ -90,9 +92,13 @@ function Body({
       );
     case "joined":
       return lobby.view ? (
-        <LobbyScreen view={lobby.view} send={lobby.send} />
+        <LobbyScreen
+          view={lobby.view}
+          send={lobby.send}
+          clockOffset={lobby.clockOffset}
+        />
       ) : (
-        <Message title="Connecting…" />
+        <LobbyConnection lobby={lobby} />
       );
   }
 }
@@ -111,36 +117,53 @@ function NameForm({
   const shown = localError ?? error;
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
-      <p className="font-mono text-4xl font-black tracking-[0.3em]">{code}</p>
-      <form
-        className="flex w-full max-w-xs flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const check = validateName(name);
-          if (!check.ok) return setLocalError(check.message);
-          onSubmit(check.name);
-        }}
-      >
-        <input
-          aria-label="Your name"
-          className="field"
-          placeholder="Your name"
-          maxLength={NAME_MAX_LEN * 2}
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setLocalError(null);
+    <div className="site-shell">
+      <Masthead label="JOIN GAME" />
+      <main className="name-main">
+        <div className="name-room">
+          <span className="eyebrow">ROOM</span>
+          <strong>{code}</strong>
+        </div>
+        <h1>Join the game</h1>
+        <p>Enter your name to join.</p>
+        <form
+          className="name-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const check = validateName(name);
+            if (!check.ok) return setLocalError(check.message);
+            onSubmit(check.name);
           }}
-        />
-        {shown && <p className="text-sm text-red-500">{shown}</p>}
-        <button type="submit" className="btn-primary">
-          Join
-        </button>
-        <p className="text-center text-xs text-foreground/40">
-          Rejoining? Use the same name as before.
-        </p>
-      </form>
+        >
+          <label htmlFor="player-name">Your name</label>
+          <input
+            id="player-name"
+            aria-label="Your name"
+            className="field"
+            placeholder="Your name"
+            maxLength={NAME_MAX_LEN * 2}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setLocalError(null);
+            }}
+          />
+          {shown && (
+            <p role="alert" className="form-error">
+              {shown}
+            </p>
+          )}
+          <button type="submit" className="btn-primary">
+            Join game <span aria-hidden>→</span>
+          </button>
+          <p className="fine-print text-center">
+            Rejoining? Use the same name as before.
+          </p>
+        </form>
+        <div className="dither-box mt-9">
+          <NunIllustration small />
+        </div>
+      </main>
     </div>
   );
 }

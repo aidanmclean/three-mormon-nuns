@@ -11,7 +11,7 @@ describe("createLobby (host screen)", () => {
       createLobby("ABCD", { actorId: null, now: T0, newId: makeIds() }),
     );
     expect(res.state.players).toEqual({});
-    expect(res.state.roles).toEqual({ gamemasterId: null, cavanId: null });
+    expect(res.state.roles).toEqual({ gamemasterId: null });
     expect(res.state.config).toEqual(DEFAULT_CONFIG);
     expect(res.state.config.maxWordsPerPhrase).toBe(3);
     expect(res.state.expiresAt).toBe(T0 + IDLE_EXPIRY_MS);
@@ -118,7 +118,6 @@ describe("permissions", () => {
     { type: "kick", playerId: "x" },
     { type: "rename", playerId: "x", name: "y" },
     { type: "setGamemaster", playerId: "x" },
-    { type: "setCavan", playerId: null },
   ];
 
   it.each(gmOnly)("$type is game-master-only", (action) => {
@@ -181,14 +180,13 @@ describe("game master actions", () => {
     });
   });
 
-  it("kicks a player, clearing Cavan if they held it", () => {
+  it("kicks a player without affecting the GM", () => {
     const l = lobbyWith("Hazel", "Alex");
     const [gm, alex] = [l.id("Hazel"), l.id("Alex")];
-    ok(l.act(gm, { type: "setCavan", playerId: alex }));
     const res = ok(l.act(gm, { type: "kick", playerId: alex }));
     expect(res.effects).toEqual([{ type: "kicked", playerId: alex }]);
     expect(l.state.players[alex]).toBeUndefined();
-    expect(l.state.roles).toEqual({ gamemasterId: gm, cavanId: null });
+    expect(l.state.roles).toEqual({ gamemasterId: gm });
   });
 
   it("can't kick yourself or a stranger", () => {
@@ -222,10 +220,12 @@ describe("game master actions", () => {
     const [hazel, alex] = [l.id("Hazel"), l.id("Alex")];
     ok(l.act(hazel, { type: "setGamemaster", playerId: alex }));
     expect(l.state.roles.gamemasterId).toBe(alex);
-    expect(l.act(hazel, { type: "setCavan", playerId: null })).toMatchObject({
+    expect(
+      l.act(hazel, { type: "updateConfig", config: { roundLengthSec: 90 } }),
+    ).toMatchObject({
       code: "FORBIDDEN",
     });
-    ok(l.act(alex, { type: "setCavan", playerId: hazel }));
+    ok(l.act(alex, { type: "updateConfig", config: { roundLengthSec: 90 } }));
   });
 
   it("only hands game master to a connected player", () => {
@@ -235,15 +235,6 @@ describe("game master actions", () => {
     expect(
       l.act(l.id("Hazel"), { type: "setGamemaster", playerId: alex }),
     ).toMatchObject({ ok: false });
-  });
-
-  it("sets and clears Cavan", () => {
-    const l = lobbyWith("Hazel", "Cavan");
-    const gm = l.id("Hazel");
-    ok(l.act(gm, { type: "setCavan", playerId: l.id("Cavan") }));
-    expect(l.state.roles.cavanId).toBe(l.id("Cavan"));
-    ok(l.act(gm, { type: "setCavan", playerId: null }));
-    expect(l.state.roles.cavanId).toBeNull();
   });
 });
 

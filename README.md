@@ -7,6 +7,8 @@ A Kahoot-style version of a popular charades-like party game, similar to _Monike
 - Change history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 - **Contributing (humans and AI agents):** [`AGENTS.md`](AGENTS.md). Every change must update the docs and changelog.
 
+For one-computer multiplayer testing, open **http://localhost:3000/dev** under `pnpm dev`: it shows a real host and 2–12 independent, controllable phone screens. See [TESTING.md](docs/TESTING.md) for the wheel, naming, writing and reconnect checklist. `/dev` is unavailable in the production preview.
+
 ## Stack
 
 | Part                                   | Tech                                                                         |
@@ -32,7 +34,13 @@ pnpm dev
 - web app on http://localhost:3000
 - lobby Worker on http://localhost:8787
 
-On the computer you'll use as the shared screen, click **Host a new game**: it becomes the host screen and shows a 4-letter code. Join that code from phones, or from private windows (a normal second tab shares your session). The first player to join is the **game master** and controls the game from their phone.
+Both services are required to create or join a lobby. If the web app is already running on its own, start the game server with `pnpm --filter @tmn/party dev`. A missing game server shows a connection error after 8 seconds; the page keeps retrying, and **Try again** retains your pending room and rules.
+
+On the computer you'll use as the shared screen, click **Host a new game**, choose the rules, then **Create lobby**. The shared screen shows a 4-letter code. Join that code from phones, or from private windows (a normal second tab shares your session). The first player to join is the **game master** and controls the game from their phone.
+
+The game master presses **Everyone’s in** to close the roster. The server’s wheel assigns players one at a time; first-drawn players become team captains and save their team names. The GM can correct memberships, then start writing. Players submit private phrases under the room’s quota and word limits; timed guessing rounds are the next development slice.
+
+The interface uses a light-mode retro comic style. Illustration sources are recorded in [ASSETS.md](docs/ASSETS.md).
 
 No Cloudflare account is needed for local development; Wrangler runs Durable Objects locally.
 
@@ -56,7 +64,7 @@ No Cloudflare account is needed for local development; Wrangler runs Durable Obj
 
 ```
 apps/
-  web/            Next.js app: landing page (/) and player screen (/play/[code])
+  web/            Next.js app: home (/), setup (/host/new), TV (/host/[code]), phones (/play/[code])
   party/          Cloudflare Worker: Lobby Durable Object (src/lobby.ts)
 packages/
   game/           @tmn/game: shared constants, types, and (soon) game rules

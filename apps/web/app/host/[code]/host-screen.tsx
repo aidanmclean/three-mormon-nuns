@@ -9,8 +9,12 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Masthead, NunIllustration, Steps } from "@/app/brand";
+import { LobbyConnection } from "@/app/lobby-connection";
 import { Message } from "@/app/message";
-import { clearScreen, loadScreen, saveScreen } from "@/lib/session";
+import { TeamBoard } from "@/app/team-board";
+import { WritingScreen } from "@/app/writing-screen";
+import { clearScreen, devicePath, loadScreen, saveScreen } from "@/lib/session";
 import { useLobby } from "@/lib/use-lobby";
 
 export function HostScreen({ code: rawCode }: { code: string }) {
@@ -22,7 +26,7 @@ export function HostScreen({ code: rawCode }: { code: string }) {
     const next = randomCode();
     if (screen) saveScreen(next, screen);
     clearScreen(code);
-    router.replace(`/host/${next}`);
+    router.replace(devicePath(`/host/${next}`));
   });
 
   if (!isValidCode(code)) return <Message title="That's not a lobby code." />;
@@ -31,11 +35,11 @@ export function HostScreen({ code: rawCode }: { code: string }) {
     case "connecting":
     case "joining":
     case "needName": // players only
-      return <Message title="Setting up…" />;
+      return <LobbyConnection lobby={lobby} hosting />;
     case "notHost":
       return (
         <Message
-          title="This lobby is hosted on another screen."
+          title="This browser does not have the host key."
           body="Want to play? Join from your phone."
           action={
             <Link href={`/play/${code}`} className="btn-primary">
@@ -51,7 +55,7 @@ export function HostScreen({ code: rawCode }: { code: string }) {
         <Message
           title={
             lobby.goneReason === "replaced"
-              ? "This lobby is now hosted on another screen."
+              ? "This screen’s connection was replaced."
               : "This lobby has closed."
           }
         />
@@ -64,91 +68,123 @@ export function HostScreen({ code: rawCode }: { code: string }) {
               Reconnecting…
             </div>
           )}
-          <LobbyBoard view={lobby.view} />
+          <LobbyBoard view={lobby.view} clockOffset={lobby.clockOffset} />
         </>
       ) : (
-        <Message title="Setting up…" />
+        <LobbyConnection lobby={lobby} hosting />
       );
   }
 }
 
-function LobbyBoard({ view }: { view: LobbyView }) {
+function LobbyBoard({
+  view,
+  clockOffset,
+}: {
+  view: LobbyView;
+  clockOffset: number;
+}) {
   // The addresses players should type on their phones, best first (D20).
   const addresses = useJoinAddresses();
   const gm = view.players.find((p) => p.isGamemaster);
-  const cavan = view.players.find((p) => p.isCavan);
   const { config } = view;
   const minutes = `${Math.floor(config.roundLengthSec / 60)}:${String(config.roundLengthSec % 60).padStart(2, "0")}`;
 
+  const invite = (
+    <aside className="host-invite">
+      <h1>Join the game</h1>
+      <p className="text-sm mt-5">Join on your phone at</p>
+      <p className="join-address">{addresses[0] ?? "…"}</p>
+      <p className="eyebrow mt-4">ENTER THE ROOM CODE</p>
+      <div className="host-code">{view.code}</div>
+      {addresses.length > 1 && (
+        <p className="fine-print">
+          Not working? Try {addresses.slice(1).join(" or ")}
+        </p>
+      )}
+      <NunIllustration small />
+    </aside>
+  );
   return (
-    <div className="flex flex-1 flex-col gap-10 p-8 md:p-12">
-      <header className="flex flex-col items-center gap-3 text-center">
-        <p className="text-xl text-foreground/60 md:text-2xl">
-          Join on your phone at{" "}
-          <span className="font-semibold text-foreground">
-            {addresses[0] ?? "…"}
-          </span>{" "}
-          with code
-        </p>
-        <p className="font-mono text-8xl font-black tracking-[0.3em] md:text-9xl">
-          {view.code}
-        </p>
-        {addresses.length > 1 && (
-          <p className="text-sm text-foreground/40">
-            Not working? Try {addresses.slice(1).join(" or ")}
-          </p>
-        )}
-      </header>
-
-      <section className="flex flex-1 flex-col items-center gap-6">
-        {view.players.length === 0 ? (
-          <p className="text-2xl text-foreground/50">
-            Waiting for players… the first to join becomes the game master.
-          </p>
+    <div className="site-shell host-shell">
+      <Masthead label="SHARED SCREEN" />
+      <Steps
+        current={
+          view.phase === "teams"
+            ? "teams"
+            : view.phase === "writing"
+              ? "writing"
+              : "lobby"
+        }
+      />
+      <main className="host-main">
+        {view.phase === "lobby" ? (
+          <div className="host-board">
+            {invite}
+            <section className="host-players">
+              <div className="host-players-heading">
+                <h2>Players</h2>
+                <span className="badge">
+                  {view.players.length} / {config.maxPlayers} HERE
+                </span>
+              </div>
+              {!view.players.length ? (
+                <div className="empty-room">
+                  <span aria-hidden>[ . . . ]</span>
+                  <h3>Waiting for players</h3>
+                  <p>The first player to join becomes the game master.</p>
+                </div>
+              ) : (
+                <ul className="player-tickets">
+                  {view.players.map((p) => (
+                    <li
+                      key={p.id}
+                      className={`player-ticket ${p.status === "inactive" ? "offline" : ""}`}
+                    >
+                      <span className="player-avatar" aria-hidden>
+                        {p.status === "inactive" ? "[--]" : "[:)]"}
+                      </span>
+                      <div>
+                        <strong>{p.name}</strong>
+                        {p.isGamemaster && (
+                          <span className="badge mt-1">GAME MASTER</span>
+                        )}
+                        {p.status === "inactive" && (
+                          <span className="fine-print">offline</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
         ) : (
-          <ul className="flex max-w-5xl flex-wrap justify-center gap-4">
-            {view.players.map((p) => (
-              <li
-                key={p.id}
-                className={`flex items-center gap-3 rounded-2xl border-2 px-6 py-4 text-2xl font-bold md:text-3xl ${
-                  p.status === "inactive"
-                    ? "border-foreground/10 text-foreground/35"
-                    : "border-violet-600/40 bg-violet-600/10"
-                }`}
-              >
-                {p.name}
-                {p.isGamemaster && (
-                  <span className="rounded-full bg-violet-600 px-3 py-1 text-sm font-semibold text-white">
-                    GM
-                  </span>
-                )}
-                {p.isCavan && (
-                  <span className="rounded-full bg-amber-500 px-3 py-1 text-sm font-semibold text-black">
-                    Cavan
-                  </span>
-                )}
-                {p.status === "inactive" && (
-                  <span className="text-base font-normal">offline</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="host-team-layout">
+            {invite}
+            {view.phase === "writing" ? (
+              <WritingScreen view={view} />
+            ) : (
+              <TeamBoard view={view} clockOffset={clockOffset} />
+            )}
+          </div>
         )}
-      </section>
-
-      <footer className="flex flex-col items-center gap-2 text-center text-lg text-foreground/60">
-        <p>
-          {minutes} turns · {config.teamCount} teams · {config.phrasesPerPlayer}{" "}
-          phrases each · up to {config.maxWordsPerPhrase} words
+        <div className="host-rule-strip">
+          <span>{minutes} TURNS</span>
+          <span>{config.teamCount} TEAMS</span>
+          <span>{config.phrasesPerPlayer} PHRASES EACH</span>
+          <span>{config.maxWordsPerPhrase} WORDS MAX</span>
+          <span>3 ROUNDS</span>
+        </div>
+        <p className="host-gm-note">
+          {gm ? (
+            <>
+              <strong>{gm.name}</strong> is the game master.
+            </>
+          ) : (
+            "Join on your phone. Keep this screen visible."
+          )}
         </p>
-        {gm && (
-          <p>
-            <span className="font-semibold text-foreground">{gm.name}</span> is
-            the game master and starts the game from their phone.
-          </p>
-        )}
-        {cavan && <p>The game master vets every phrase {cavan.name} writes.</p>}
-      </footer>
+      </main>
     </div>
   );
 }

@@ -5,13 +5,13 @@ import { Game } from "./game";
 // Suspense (required with cacheComponents).
 export default function PlayPage({ params }: PageProps<"/play/[code]">) {
   return (
-    <main className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col">
       <Suspense fallback={<Centered>Loading…</Centered>}>
         {params.then(({ code }) => (
           <Game code={code} />
         ))}
       </Suspense>
-    </main>
+    </div>
   );
 }
 

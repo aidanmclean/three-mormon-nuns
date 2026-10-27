@@ -17,7 +17,14 @@ const KINDS = [
   "kick",
   "rename",
   "setGamemaster",
-  "setCavan",
+  "startTeams",
+  "nameTeam",
+  "addToTeam",
+  "removeFromTeam",
+  "confirmTeams",
+  "draftTick",
+  "submitPhrase",
+  "deletePhrase",
   "presence",
   "touch",
   "screen",
@@ -37,7 +44,7 @@ const step = fc.record({
       "Alex",
       "alex",
       " SAM ",
-      "Cavan",
+      "Drew",
       "",
       "x".repeat(25),
     ),
@@ -45,7 +52,7 @@ const step = fc.record({
   ),
   num: fc.integer({ min: -10, max: 300 }),
   str: fc.oneof(
-    fc.constantFrom("off", "cavan", "all", "names", "both"),
+    fc.constantFrom("off", "invalid", "all", "names", "both"),
     fc.string(),
   ),
   useToken: fc.boolean(),
@@ -87,9 +94,14 @@ function toAction(
     });
     return { actor: null, action: { type: "_presence", active, inactive } };
   }
+  if (s.kind === "draftTick")
+    return { actor: null, action: { type: "_draftTick" } };
   if (s.kind === "touch") return { actor: null, action: { type: "_touch" } };
 
   const target = pick(s.target);
+  const teamId =
+    state.teamOrder[s.mask % Math.max(1, state.teamOrder.length)] ??
+    "ghost-team";
   const raw: unknown = {
     join: {
       type: "join",
@@ -110,7 +122,23 @@ function toAction(
     kick: { type: "kick", playerId: target },
     rename: { type: "rename", playerId: target, name: s.name },
     setGamemaster: { type: "setGamemaster", playerId: target },
-    setCavan: { type: "setCavan", playerId: s.useToken ? null : target },
+    startTeams: { type: "startTeams" },
+    nameTeam: { type: "nameTeam", teamId, name: s.name },
+    addToTeam: {
+      type: "addToTeam",
+      teamId,
+      playerId: s.useToken ? "random" : target,
+    },
+    removeFromTeam: { type: "removeFromTeam", teamId, playerId: target },
+    confirmTeams: { type: "confirmTeams" },
+    submitPhrase: { type: "submitPhrase", text: s.name },
+    deletePhrase: {
+      type: "deletePhrase",
+      phraseId:
+        Object.keys(state.phrases)[
+          s.mask % Math.max(1, Object.keys(state.phrases).length)
+        ] ?? "missing",
+    },
     screen: { type: "screen", token: s.useToken ? state.screenToken : s.str },
     junk: s.junk,
   }[s.kind];
@@ -169,7 +197,6 @@ describe("reducer properties", () => {
       "kick",
       "rename",
       "setGamemaster",
-      "setCavan",
       "screen",
       "_presence",
     ]) {

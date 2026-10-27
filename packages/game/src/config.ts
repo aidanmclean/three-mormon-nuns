@@ -25,8 +25,7 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 /**
  * Defaults follow the house rules: 2 teams, 3 phrases of up to 3 words each,
- * 1-minute turns. There is no moderation setting: Cavan's phrases are always
- * vetted by the game master (D16).
+ * 1-minute turns. There are no special player roles or phrase moderation.
  */
 export const DEFAULT_CONFIG: Config = {
   roundLengthSec: 60,

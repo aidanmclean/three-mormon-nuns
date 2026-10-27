@@ -1,77 +1,144 @@
 "use client";
 
-import {
-  CONFIG_RANGES,
-  type Config,
-  type LobbyView,
-  type PlayerView,
-} from "@tmn/game";
+import { type LobbyView, NAME_MAX_LEN, type PlayerView } from "@tmn/game";
 import { useState } from "react";
+import { Masthead, Steps } from "@/app/brand";
+import { Settings } from "@/app/settings";
+import { TeamBoard } from "@/app/team-board";
+import { WritingScreen } from "@/app/writing-screen";
 import type { LobbyAction } from "@/lib/use-lobby";
 
 type Send = (action: LobbyAction) => void;
 
-export function LobbyScreen({ view, send }: { view: LobbyView; send: Send }) {
+export function LobbyScreen({
+  view,
+  send,
+  clockOffset = 0,
+}: {
+  view: LobbyView;
+  send: Send;
+  clockOffset?: number;
+}) {
   const me = view.players.find((p) => p.id === view.you);
-  // The game master controls the game; everyone else just plays (D18).
   const amGm = me?.isGamemaster ?? false;
   const gm = view.players.find((p) => p.isGamemaster);
   const active = view.players.filter((p) => p.status === "active").length;
-  const cavan = view.players.find((p) => p.isCavan);
+  const phase =
+    view.phase === "teams"
+      ? "teams"
+      : view.phase === "writing"
+        ? "writing"
+        : "lobby";
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-8 p-4 pb-24">
-      <header className="flex flex-col items-center gap-1 pt-4 text-center">
-        <p className="text-sm uppercase tracking-widest text-foreground/60">
-          Lobby code
-        </p>
-        <p className="font-mono text-6xl font-black tracking-[0.3em]">
-          {view.code}
-        </p>
-        <p className="text-sm text-foreground/60">
-          {active} here · {view.players.length}/{view.config.maxPlayers} players
-        </p>
-      </header>
-
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-bold">Players</h2>
-        <ul className="flex flex-col divide-y divide-foreground/10 rounded-xl border border-foreground/15">
-          {view.players.map((p) => (
-            <PlayerRow
-              key={p.id}
-              player={p}
-              isYou={p.id === view.you}
-              canManage={amGm}
-              send={send}
-            />
-          ))}
-        </ul>
-        {cavan && (
-          <p className="text-sm text-foreground/60">
-            The game master approves or rejects every phrase {cavan.name}{" "}
-            writes.
-          </p>
-        )}
-      </section>
-
-      <Settings config={view.config} editable={amGm} send={send} />
-
-      <section className="flex flex-col gap-2 text-center">
-        {amGm ? (
-          <>
-            <button type="button" className="btn-primary" disabled>
-              Start team selection
-            </button>
-            <p className="text-sm text-foreground/60">
-              Team selection is the next slice being built.
+    <div className="site-shell">
+      <Masthead label="LOBBY" />
+      <main className="player-shell">
+        <Steps current={phase} />
+        <div className="room-ticket">
+          <div>
+            <span className="eyebrow">
+              YOUR ROOM / {view.players.length} OF {view.config.maxPlayers} HERE
+            </span>
+            <p>
+              {me?.name}
+              {amGm ? " · Game master" : ""}
             </p>
+          </div>
+          <strong>{view.code}</strong>
+        </div>
+        {view.phase !== "lobby" ? (
+          <>
+            {view.phase === "writing" ? (
+              <WritingScreen view={view} send={send} />
+            ) : (
+              <TeamBoard view={view} send={send} clockOffset={clockOffset} />
+            )}
+            {amGm && (
+              <details className="paper-panel mt-6">
+                <summary className="cursor-pointer p-4 font-semibold">
+                  Manage players
+                </summary>
+                <ul>
+                  {view.players.map((player) => (
+                    <PlayerRow
+                      key={player.id}
+                      player={player}
+                      isYou={player.id === view.you}
+                      canManage={amGm}
+                      send={send}
+                    />
+                  ))}
+                </ul>
+              </details>
+            )}
           </>
         ) : (
-          <p className="text-foreground/60">
-            Waiting for {gm?.name ?? "the game master"} to start…
-          </p>
+          <>
+            <div className="page-heading">
+              <h1>Lobby</h1>
+              <p>{active} players connected</p>
+            </div>
+            <div className="lobby-layout">
+              <section className="paper-panel">
+                <div className="panel-heading">
+                  <h2>Players</h2>
+                  <span className="badge">{active} ONLINE</span>
+                </div>
+                <ul>
+                  {view.players.map((player) => (
+                    <PlayerRow
+                      key={player.id}
+                      player={player}
+                      isYou={player.id === view.you}
+                      canManage={amGm}
+                      send={send}
+                    />
+                  ))}
+                </ul>
+              </section>
+              <section className="paper-panel">
+                <div className="panel-heading">
+                  <h2>House rules</h2>
+                  {amGm && <span className="badge">EDITABLE</span>}
+                </div>
+                <Settings
+                  compact
+                  config={view.config}
+                  onChange={
+                    amGm
+                      ? (config) => send({ type: "updateConfig", config })
+                      : undefined
+                  }
+                />
+              </section>
+            </div>
+            <div className="lobby-action">
+              {amGm ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={active < view.config.teamCount}
+                    onClick={() => send({ type: "startTeams" })}
+                  >
+                    Everyone’s in <span aria-hidden>→</span>
+                  </button>
+                  <p className="fine-print">
+                    {active < view.config.teamCount
+                      ? `Waiting for ${view.config.teamCount - active} more connected player(s), so every team has someone.`
+                      : "This closes the roster and starts the wheel."}
+                  </p>
+                </>
+              ) : (
+                <p className="waiting-note">
+                  {gm?.name ?? "Your game master"} will start team selection.
+                </p>
+              )}
+            </div>
+          </>
         )}
-      </section>
+      </main>
     </div>
   );
 }
@@ -91,81 +158,67 @@ function PlayerRow({
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState(player.name);
   const inactive = player.status === "inactive";
-
   return (
-    <li className="flex flex-col gap-2 px-4 py-3">
-      <div className="flex items-center gap-3">
-        {/* The dot is decoration; the "offline" label carries the meaning, so
-            it doesn't rely on colour alone. */}
+    <li className="border-b border-foreground/15 p-4 last:border-0">
+      <div className="flex items-center gap-2">
+        <span className="player-avatar" aria-hidden>
+          {inactive ? "[--]" : "[:)]"}
+        </span>
         <span
-          aria-hidden
-          className={`size-2.5 shrink-0 rounded-full ${inactive ? "bg-foreground/25" : "bg-emerald-500"}`}
-        />
-        <span
-          className={`flex-1 truncate font-medium ${inactive ? "text-foreground/40" : ""}`}
+          className={`min-w-0 flex-1 break-words font-semibold ${inactive ? "offline" : ""}`}
         >
           {player.name}
-          {isYou && <span className="text-foreground/50"> (you)</span>}
-          {inactive && (
-            <span className="text-sm font-normal text-foreground/50">
-              {" "}
-              · offline
-            </span>
-          )}
+          {isYou && <span className="text-xs font-normal"> (you)</span>}
+          {inactive && <span className="text-xs font-normal"> · offline</span>}
         </span>
-        {player.isGamemaster && <Badge>Game master</Badge>}
-        {player.isCavan && <Badge>Cavan</Badge>}
-        {player.waiting && <Badge>Waiting</Badge>}
+        {player.isGamemaster && <span className="badge">GM</span>}
         {canManage && (
           <button
             type="button"
             aria-label={`Manage ${player.name}`}
-            className="rounded-lg px-2 text-xl leading-none text-foreground/60 hover:bg-foreground/10"
-            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="px-2 py-1 text-xl"
+            onClick={() => setOpen(!open)}
           >
             ⋯
           </button>
         )}
       </div>
-
       {canManage && open && (
-        <div className="flex flex-wrap gap-2 pl-5">
+        <div className="mt-3 flex flex-wrap gap-2">
           {!player.isGamemaster && !inactive && (
-            <SmallButton
+            <button
+              type="button"
+              className="btn-secondary text-xs"
               onClick={() =>
                 send({ type: "setGamemaster", playerId: player.id })
               }
             >
               Make game master
-            </SmallButton>
+            </button>
           )}
-          <SmallButton
-            onClick={() =>
-              send({
-                type: "setCavan",
-                playerId: player.isCavan ? null : player.id,
-              })
-            }
+
+          <button
+            type="button"
+            className="btn-secondary text-xs"
+            onClick={() => setRenaming(!renaming)}
           >
-            {player.isCavan ? "Not Cavan" : "Make Cavan"}
-          </SmallButton>
-          <SmallButton onClick={() => setRenaming((r) => !r)}>
             Rename
-          </SmallButton>
+          </button>
           {!isYou && (
-            <SmallButton
-              danger
+            <button
+              type="button"
+              className="btn-secondary text-xs text-red-700"
               onClick={() => send({ type: "kick", playerId: player.id })}
             >
               Kick
-            </SmallButton>
+            </button>
           )}
         </div>
       )}
-
       {canManage && open && renaming && (
         <form
-          className="flex gap-2 pl-5"
+          className="mt-3 flex gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             send({ type: "rename", playerId: player.id, name: newName });
@@ -174,160 +227,16 @@ function PlayerRow({
         >
           <input
             aria-label="New name"
-            className="field flex-1 py-1.5"
+            className="field flex-1"
             value={newName}
+            maxLength={NAME_MAX_LEN * 2}
             onChange={(e) => setNewName(e.target.value)}
           />
-          <SmallButton type="submit">Save</SmallButton>
+          <button type="submit" className="btn-secondary">
+            Save
+          </button>
         </form>
       )}
     </li>
-  );
-}
-
-const range = ([min, max]: readonly [number, number], step = 1) =>
-  Array.from(
-    { length: Math.floor((max - min) / step) + 1 },
-    (_, i) => min + i * step,
-  );
-
-const formatSeconds = (s: number) =>
-  `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-
-// Profanity filtering isn't enforced yet, so it isn't offered here (§4).
-const SETTINGS: {
-  key: keyof Config;
-  label: string;
-  options: { value: string | number; label: string }[];
-}[] = [
-  {
-    key: "roundLengthSec",
-    label: "Turn length",
-    options: range(CONFIG_RANGES.roundLengthSec, 15).map((v) => ({
-      value: v,
-      label: formatSeconds(v),
-    })),
-  },
-  {
-    key: "teamCount",
-    label: "Teams",
-    options: range(CONFIG_RANGES.teamCount).map((v) => ({
-      value: v,
-      label: String(v),
-    })),
-  },
-  {
-    key: "phrasesPerPlayer",
-    label: "Phrases per player",
-    options: range(CONFIG_RANGES.phrasesPerPlayer).map((v) => ({
-      value: v,
-      label: String(v),
-    })),
-  },
-  {
-    key: "maxWordsPerPhrase",
-    label: "Max words per phrase",
-    options: range(CONFIG_RANGES.maxWordsPerPhrase).map((v) => ({
-      value: v,
-      label: String(v),
-    })),
-  },
-  {
-    key: "maxPlayers",
-    label: "Max players",
-    options: range(CONFIG_RANGES.maxPlayers).map((v) => ({
-      value: v,
-      label: String(v),
-    })),
-  },
-];
-
-function Settings({
-  config,
-  editable,
-  send,
-}: {
-  config: Config;
-  editable: boolean;
-  send: Send;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-lg font-bold">Settings</h2>
-      <dl className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 rounded-xl border border-foreground/15 p-4">
-        {SETTINGS.map(({ key, label, options }) => {
-          const current = config[key];
-          return (
-            <div key={key} className="contents">
-              <dt className="text-foreground/80">{label}</dt>
-              <dd>
-                {editable ? (
-                  <select
-                    aria-label={label}
-                    className="rounded-lg border border-foreground/20 bg-background px-2 py-1"
-                    value={String(current)}
-                    onChange={(e) => {
-                      const option = options.find(
-                        (o) => String(o.value) === e.target.value,
-                      );
-                      if (option)
-                        send({
-                          type: "updateConfig",
-                          config: { [key]: option.value },
-                        });
-                    }}
-                  >
-                    {options.map((o) => (
-                      <option key={o.value} value={String(o.value)}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="font-medium">
-                    {options.find((o) => o.value === current)?.label ??
-                      String(current)}
-                  </span>
-                )}
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
-    </section>
-  );
-}
-
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="shrink-0 rounded-full bg-violet-600/15 px-2 py-0.5 text-xs font-semibold text-violet-600 dark:text-violet-300">
-      {children}
-    </span>
-  );
-}
-
-function SmallButton({
-  children,
-  onClick,
-  danger,
-  type = "button",
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  danger?: boolean;
-  type?: "button" | "submit";
-}) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
-        danger
-          ? "border-red-500/40 text-red-600 hover:bg-red-500/10"
-          : "border-foreground/20 hover:bg-foreground/10"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

@@ -17,14 +17,11 @@ describe("viewFor", () => {
 
   it("lists players in join order with role flags", () => {
     const l = lobbyWith("Hazel", "Alex");
-    l.act(l.id("Hazel"), { type: "setCavan", playerId: l.id("Alex") });
     const view = viewFor(l.state, l.id("Alex"));
     expect(view.you).toBe(l.id("Alex"));
-    expect(
-      view.players.map((p) => [p.name, p.isGamemaster, p.isCavan]),
-    ).toEqual([
-      ["Hazel", true, false],
-      ["Alex", false, true],
+    expect(view.players.map((p) => [p.name, p.isGamemaster])).toEqual([
+      ["Hazel", true],
+      ["Alex", false],
     ]);
   });
 

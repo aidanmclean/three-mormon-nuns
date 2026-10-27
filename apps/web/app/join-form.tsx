@@ -10,7 +10,7 @@ export function JoinForm() {
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="join-code-form"
       onSubmit={(e) => {
         e.preventDefault();
         if (code.length === CODE_LENGTH) router.push(`/play/${code}`);
@@ -18,8 +18,9 @@ export function JoinForm() {
     >
       <input
         aria-label="Lobby code"
-        className="field text-center font-mono text-3xl uppercase tracking-[0.5em]"
-        placeholder="CODE"
+        className="field code-field"
+        placeholder="ABCD"
+        maxLength={CODE_LENGTH}
         value={code}
         onChange={(e) => setCode(normalizeCode(e.target.value))}
         autoComplete="off"
@@ -30,7 +31,7 @@ export function JoinForm() {
         disabled={code.length !== CODE_LENGTH}
         className="btn-primary"
       >
-        Join game
+        Join game <span aria-hidden>→</span>
       </button>
     </form>
   );

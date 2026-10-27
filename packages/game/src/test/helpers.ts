@@ -5,7 +5,7 @@ import {
   type Result,
   reduce,
 } from "../reducer";
-import type { LobbyState, PlayerId } from "../types";
+import type { PlayerId } from "../types";
 
 export const T0 = 1_000_000;
 
@@ -60,8 +60,8 @@ export function lobbyWith(...names: string[]) {
       now += ms;
     },
     /** Runs an action as `actor` against a frozen state, so any mutation throws. */
-    act(actor: PlayerId | null, action: Action): Result {
-      const result = reduce(deepFreeze(state), action, ctx(actor));
+    act(actor: PlayerId | null, action: Action, rng?: () => number): Result {
+      const result = reduce(deepFreeze(state), action, { ...ctx(actor), rng });
       if (result.ok) state = result.state;
       return result;
     },

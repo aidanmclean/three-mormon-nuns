@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ConfigSchema } from "./config";
+import { PHRASE_MAX_LEN } from "./constants";
 import type { LobbyView } from "./view";
 
 // Raw strings are bounded here; names are cleaned and fully validated in the
@@ -10,7 +11,10 @@ const Id = z.string().min(1).max(64);
 /** Everything a client may send, besides the raw "ping" heartbeat frame. */
 export const ClientMessage = z.discriminatedUnion("type", [
   /** From the host screen: create this lobby (D14, D18). */
-  z.strictObject({ type: z.literal("create") }),
+  z.strictObject({
+    type: z.literal("create"),
+    config: ConfigSchema.optional(),
+  }),
   /** From the host screen: reconnect with the token it got from `create`. */
   z.strictObject({
     type: z.literal("screen"),
@@ -28,7 +32,20 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("kick"), playerId: Id }),
   z.strictObject({ type: z.literal("rename"), playerId: Id, name: RawName }),
   z.strictObject({ type: z.literal("setGamemaster"), playerId: Id }),
-  z.strictObject({ type: z.literal("setCavan"), playerId: Id.nullable() }),
+  z.strictObject({ type: z.literal("startTeams") }),
+  z.strictObject({ type: z.literal("nameTeam"), teamId: Id, name: RawName }),
+  z.strictObject({ type: z.literal("addToTeam"), teamId: Id, playerId: Id }),
+  z.strictObject({
+    type: z.literal("removeFromTeam"),
+    teamId: Id,
+    playerId: Id,
+  }),
+  z.strictObject({ type: z.literal("confirmTeams") }),
+  z.strictObject({
+    type: z.literal("submitPhrase"),
+    text: z.string().max(PHRASE_MAX_LEN * 2),
+  }),
+  z.strictObject({ type: z.literal("deletePhrase"), phraseId: Id }),
 ]);
 
 export type ClientMessage = z.infer<typeof ClientMessage>;

@@ -8,10 +8,10 @@ export const PARTY = "lobby";
 export const CODE_LENGTH = 4;
 
 /** Bump on any breaking change to client/server messages or views (§6.8). */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 5;
 
 /** Bump whenever the persisted LobbyState shape changes (§6.5). */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 5;
 
 /** Fixed by the game rules (§1.2). */
 export const ROUNDS = 3;
@@ -34,11 +34,16 @@ export const ROUND_RULES = [
 
 export const MAX_MESSAGE_BYTES = 4096;
 export const NAME_MAX_LEN = 20;
+export const PHRASE_MAX_LEN = 80;
+export const WHEEL_SPIN_MS = 2_600;
+export const WHEEL_REVEAL_MS = 900;
 export const MAX_PLAYERS_CAP = 40;
 /** Players + TV screens + duplicate tabs. */
 export const MAX_CONNECTIONS = 60;
 
 export const HEARTBEAT_INTERVAL_MS = 5_000;
+/** Show connection help while automatic retries continue, rather than an endless loading screen. */
+export const LOBBY_RESPONSE_TIMEOUT_MS = 8_000;
 /** Client reconnect backoff: first retry after 250 ms, growing 1.5× up to 4 s (D19). */
 export const RECONNECT_MIN_DELAY_MS = 250;
 export const RECONNECT_MAX_DELAY_MS = 4_000;

@@ -1,22 +1,78 @@
-import { GAME_NAME } from "@tmn/game";
+import Link from "next/link";
+import { Masthead, NunIllustration } from "./brand";
 import { HostButton } from "./host-button";
 import { JoinForm } from "./join-form";
 
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-10 p-6">
-      <h1 className="text-center text-5xl font-black tracking-tight">
-        {GAME_NAME}
-      </h1>
-      <div className="flex w-full max-w-xs flex-col gap-8">
-        <JoinForm />
-        <div className="flex items-center gap-3 text-sm text-foreground/50">
-          <span className="h-px flex-1 bg-foreground/15" />
-          or
-          <span className="h-px flex-1 bg-foreground/15" />
-        </div>
-        <HostButton />
-      </div>
-    </main>
+    <div className="site-shell home-shell">
+      <Masthead />
+      <main>
+        <section className="home-hero">
+          <div className="hero-copy">
+            <h1 className="hero-title" aria-label="3 Mormon Nuns">
+              <span className="title-three">3</span>
+              <span>
+                MORMON
+                <br />
+                <span className="title-nuns">
+                  NUNS
+                  <span className="title-star" aria-hidden>
+                    ✳
+                  </span>
+                </span>
+              </span>
+            </h1>
+            <p className="hero-description">
+              Write phrases. Split into teams. Guess.
+            </p>
+            <ol className="round-tabs" aria-label="The three rounds">
+              <li>
+                <span>1</span> Describe
+              </li>
+              <li>
+                <span>2</span> Charades
+              </li>
+              <li>
+                <span>3</span> One word
+              </li>
+            </ol>
+          </div>
+          <div className="hero-art">
+            <div className="comic-rays" aria-hidden />
+            <div className="comic-balloon">
+              Same phrases.
+              <br />
+              Three rounds.
+            </div>
+            <NunIllustration />
+          </div>
+        </section>
+        <section className="entry-grid" aria-label="Play the game">
+          <div className="host-entry">
+            <div>
+              <h2>New game</h2>
+              <p>Host on a TV or laptop.</p>
+            </div>
+            <div className="entry-action">
+              <HostButton />
+            </div>
+          </div>
+          <div className="join-entry">
+            <h2>Join a game</h2>
+            <JoinForm />
+          </div>
+        </section>
+      </main>
+      <footer className="site-footer">
+        <span>Play on your phones. Keep this screen up.</span>
+        {process.env.NODE_ENV === "development" && (
+          <Link href="/dev" className="underline">
+            Test multiple players
+          </Link>
+        )}
+        <span>No downloads or accounts.</span>
+      </footer>
+    </div>
   );
 }

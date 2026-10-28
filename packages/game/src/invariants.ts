@@ -1,6 +1,12 @@
 import { isValidCode } from "./code";
 import { ConfigSchema } from "./config";
-import { PHRASE_MAX_LEN, SCHEMA_VERSION } from "./constants";
+import {
+  PHRASE_MAX_LEN,
+  ROUNDS,
+  SCHEMA_VERSION,
+  TURN_MAX_MS,
+} from "./constants";
+import { inGame } from "./game";
 import { cleanName, nameKey, validateName } from "./names";
 import type { LobbyState } from "./types";
 
@@ -49,6 +55,9 @@ export function checkInvariants(state: LobbyState): string[] {
     err("players but no game master");
   if (players.length === 0 && gamemasterId !== null)
     err("game master without players");
+
+  const { cavanId } = state.roles;
+  if (cavanId !== null && !state.players[cavanId]) err("cavan missing");
 
   const anyActive = players.some(([, p]) => p.status === "active");
   if (anyActive && gm?.status !== "active")
@@ -107,6 +116,10 @@ export function checkInvariants(state: LobbyState): string[] {
   if (state.phase === "lobby" && state.draft) err("draft in lobby");
   if (state.phase !== "lobby" && !state.draft) err("missing draft");
   if (state.draft) {
+    if (state.draft.mode !== "wheel" && state.draft.mode !== "manual")
+      err("invalid team mode");
+    if (state.draft.mode === "manual" && state.draft.stage !== "complete")
+      err("manual teams with a running wheel");
     if (state.draft.stage !== "complete" && state.phase !== "teams")
       err("draft running outside teams");
     if (
@@ -147,14 +160,26 @@ export function checkInvariants(state: LobbyState): string[] {
       err("spin deadline mismatch");
   }
   const phraseKeys = new Set<string>();
+  const playing = inGame(state.phase);
   for (const [id, phrase] of Object.entries(state.phrases)) {
-    if (phrase.id !== id || !state.players[phrase.authorId])
-      err("invalid phrase author/id");
+    if (phrase.id !== id) err("invalid phrase id");
+    // Once the game starts, a kicked author's phrases stay in the pile (D31).
+    if (!playing && !state.players[phrase.authorId])
+      err("invalid phrase author");
     if (
-      !state.players[phrase.authorId]?.teamId ||
-      state.players[phrase.authorId]?.waiting
+      !playing &&
+      (!state.players[phrase.authorId]?.teamId ||
+        state.players[phrase.authorId]?.waiting)
     )
       err("phrase author is not an eligible team member");
+    if (!["approved", "pending", "rejected"].includes(phrase.status))
+      err("invalid phrase status");
+    // Only Cavan's phrases wait for the GM, and only during writing (D30).
+    if (
+      phrase.status === "pending" &&
+      (state.phase !== "writing" || phrase.authorId !== cavanId)
+    )
+      err("pending phrase outside Cavan's writing");
     if (
       !phrase.text ||
       cleanName(phrase.text) !== phrase.text ||
@@ -168,9 +193,87 @@ export function checkInvariants(state: LobbyState): string[] {
   }
   for (const [id] of players)
     if (
-      Object.values(state.phrases).filter((p) => p.authorId === id).length >
-      state.config.phrasesPerPlayer
+      Object.values(state.phrases).filter(
+        (p) => p.authorId === id && p.status !== "rejected",
+      ).length > state.config.phrasesPerPlayer
     )
       err("phrase quota exceeded");
+  checkGame(state, err);
   return errors;
+}
+
+/** Rules for rounds and turns (D13, D17, D31). */
+function checkGame(state: LobbyState, err: (msg: string) => void) {
+  const game = state.game;
+  if (inGame(state.phase) !== (game !== null)) err("game state/phase mismatch");
+  if (!game) return;
+  if (!Number.isInteger(game.round) || game.round < 1 || game.round > ROUNDS)
+    err("invalid round");
+  const approved = new Set(
+    Object.values(state.phrases)
+      .filter((p) => p.status === "approved")
+      .map((p) => p.id),
+  );
+  if (new Set(game.pile).size !== game.pile.length) err("duplicate pile entry");
+  if (game.pile.some((id) => !approved.has(id)))
+    err("pile has an unapproved phrase");
+  if (state.phase !== "results" && game.pile.length === 0)
+    err("empty pile mid-game");
+  const scoreIds = Object.keys(game.scores);
+  if (
+    scoreIds.length !== state.teamOrder.length ||
+    state.teamOrder.some(
+      (id) => !Number.isInteger(game.scores[id]) || (game.scores[id] ?? -1) < 0,
+    )
+  )
+    err("invalid scores");
+  if (
+    !Number.isInteger(game.teamCursor) ||
+    game.teamCursor < 0 ||
+    game.teamCursor >= Math.max(1, state.teamOrder.length)
+  )
+    err("invalid team cursor");
+  if (
+    Object.values(game.memberCursor).some((i) => !Number.isInteger(i) || i < 0)
+  )
+    err("invalid member cursor");
+  if (new Set(game.acknowledged).size !== game.acknowledged.length)
+    err("duplicate acknowledgement");
+
+  const turn = game.turn;
+  const live = state.phase === "turnActive" || state.phase === "turnReview";
+  if (live && !turn) err("live phase without a turn");
+  if (state.phase === "results" && turn) err("turn after the game ended");
+  if (state.phase === "roundIntro" && turn && !turn.carried)
+    err("non-carried turn during round intro");
+  if (!turn) return;
+  if (!state.teams[turn.teamId]) err("turn for a missing team");
+  if (new Set(turn.seen).size !== turn.seen.length)
+    err("phrase shown twice in a turn");
+  if (turn.seen.some((id) => !game.pile.includes(id)))
+    err("shown phrase not in the pile");
+  if (
+    !(
+      0 <= turn.cursor &&
+      turn.cursor <= turn.maxCursor &&
+      turn.maxCursor <= turn.seen.length
+    )
+  )
+    err("invalid turn cursor");
+  if (turn.remainingMs < 0 || turn.remainingMs > TURN_MAX_MS)
+    err("invalid turn time");
+  if (state.phase === "turnReady" || state.phase === "roundIntro") {
+    if (turn.seen.length || turn.endedBy || turn.endsAt !== null || turn.paused)
+      err("prepared turn already started");
+  }
+  if (state.phase === "turnActive") {
+    if (turn.endedBy !== null) err("live turn marked ended");
+    if (turn.paused !== (turn.endsAt === null)) err("paused/deadline mismatch");
+    if (turn.seen.length === 0) err("live turn without a phrase");
+  }
+  if (
+    state.phase === "turnReview" &&
+    (turn.endedBy === null || turn.endsAt !== null)
+  )
+    err("review turn still running");
 }

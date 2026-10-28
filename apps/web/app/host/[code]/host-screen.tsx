@@ -10,12 +10,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Masthead, NunIllustration, Steps } from "@/app/brand";
+import { EmoteLayer } from "@/app/game-bits";
+import { GameBoard } from "@/app/game-board";
 import { LobbyConnection } from "@/app/lobby-connection";
 import { Message } from "@/app/message";
 import { TeamBoard } from "@/app/team-board";
 import { WritingScreen } from "@/app/writing-screen";
 import { clearScreen, devicePath, loadScreen, saveScreen } from "@/lib/session";
-import { useLobby } from "@/lib/use-lobby";
+import { type EmoteBurst, useLobby } from "@/lib/use-lobby";
 
 export function HostScreen({ code: rawCode }: { code: string }) {
   const code = normalizeCode(rawCode);
@@ -68,7 +70,11 @@ export function HostScreen({ code: rawCode }: { code: string }) {
               Reconnecting…
             </div>
           )}
-          <LobbyBoard view={lobby.view} clockOffset={lobby.clockOffset} />
+          <LobbyBoard
+            view={lobby.view}
+            clockOffset={lobby.clockOffset}
+            emotes={lobby.emotes}
+          />
         </>
       ) : (
         <LobbyConnection lobby={lobby} hosting />
@@ -79,9 +85,11 @@ export function HostScreen({ code: rawCode }: { code: string }) {
 function LobbyBoard({
   view,
   clockOffset,
+  emotes,
 }: {
   view: LobbyView;
   clockOffset: number;
+  emotes: EmoteBurst[];
 }) {
   // The addresses players should type on their phones, best first (D20).
   const addresses = useJoinAddresses();
@@ -106,6 +114,7 @@ function LobbyBoard({
   );
   return (
     <div className="site-shell host-shell">
+      <EmoteLayer emotes={emotes} />
       <Masthead label="SHARED SCREEN" />
       <Steps
         current={
@@ -113,7 +122,9 @@ function LobbyBoard({
             ? "teams"
             : view.phase === "writing"
               ? "writing"
-              : "lobby"
+              : view.phase === "lobby"
+                ? "lobby"
+                : "play"
         }
       />
       <main className="host-main">
@@ -148,6 +159,9 @@ function LobbyBoard({
                         {p.isGamemaster && (
                           <span className="badge mt-1">GAME MASTER</span>
                         )}
+                        {p.isCavan && (
+                          <span className="badge badge-cavan mt-1">CAVAN</span>
+                        )}
                         {p.status === "inactive" && (
                           <span className="fine-print">offline</span>
                         )}
@@ -157,6 +171,14 @@ function LobbyBoard({
                 </ul>
               )}
             </section>
+          </div>
+        ) : view.game ? (
+          <div className="host-game-layout">
+            <GameBoard view={view} clockOffset={clockOffset} />
+            <p className="fine-print host-late-join">
+              Late? Join at {addresses[0] ?? "…"} with code{" "}
+              <strong>{view.code}</strong>
+            </p>
           </div>
         ) : (
           <div className="host-team-layout">

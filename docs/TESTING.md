@@ -27,15 +27,38 @@ The test desk is available only under `pnpm dev`. **The production preview at po
 Use six players and two teams for the first run:
 
 1. On the host, check that all six players are listed. Only **Alex’s phone** has the **Everyone’s in** button.
-2. Press **Everyone’s in** on Alex’s phone. The roster closes and the server starts the wheel automatically on every screen. There is no player self-selection or per-phone spin button.
+2. Under **How should teams be made?** leave **Spin the wheel** selected, and press **Everyone’s in** on Alex’s phone. The roster closes and the server starts the wheel automatically on every screen. There is no player self-selection or per-phone spin button.
 3. Watch each spin pick a name and place that player on a team. A spin takes **2.6 seconds**, followed by a **0.9-second reveal**. Six players take about **21 seconds**. The server decides the winner; the animation only displays that choice.
 4. Check that each name is assigned once, that the sides are balanced (3 and 3), and that the **first person drawn for each team** has the **CAPTAIN** badge. With five players, expect 3 and 2; with seven and three teams, expect 3, 2 and 2.
 5. After the final reveal, captains can enter and **Save name** on their own team card. The GM can name either team. Other players have no naming or moving controls. Blank or duplicate names are rejected.
 6. **Start writing phrases** stays disabled until every team has a saved name and a connected member, and every connected non-waiting player has a team.
 7. On Alex’s phone, use **Move a player here… → Move** to correct assignments. Captains cannot move members. Removing/moving a captain hands the role to the next eligible member in assignment order. Try leaving a team empty: continuing must be blocked.
-8. Press **Start writing phrases** on the GM’s phone. Every eligible phone gets a real phrase form. Add three phrases per player (default), each with at most three words. Try an empty phrase, too many words, an overlong phrase, and a duplicate: none should enter the pile.
-9. A player sees only their own phrase text. The host, GM and other phones see counts. **Delete** removes an author’s own phrase and restores a quota slot. The GM has no special permission to read or delete another player’s phrases.
-10. Fill everyone’s quota. The host shows everyone ready. The timed guessing rounds remain a future development stage; this slice ends after phrase collection.
+8. Before starting writing (or during it), make someone Cavan: on Alex’s phone, open a non-GM player’s row and press **Make Cavan**. The host shows a **CAVAN** badge. The GM can’t be Cavan, and Cavan can’t be handed GM.
+9. Press **Start writing phrases** on the GM’s phone. Every eligible phone gets a real phrase form. Add three phrases per player (default), each with at most three words. Try an empty phrase, too many words, an overlong phrase, and a duplicate: none should enter the pile.
+10. A player sees only their own phrase text. The host and other phones see counts. **Delete** removes an author’s own phrase and restores a quota slot. The GM can’t read or delete anyone’s phrases except Cavan’s pending ones.
+11. Cavan’s phrases show **PENDING** on Cavan’s phone and appear in a **Cavan’s phrases** queue on the GM’s phone only. **Reject** one: it’s struck through for Cavan and frees a slot, so Cavan writes another. **Approve** the rest.
+12. Fill everyone’s quota. **Start the game** on the GM’s phone stays refused while anything is pending or someone connected is short of approved phrases.
+
+## Pick teams by hand
+
+1. In a fresh room, choose **Pick them myself** on Alex’s phone, then press **Everyone’s in**.
+2. Every screen shows **Pick the teams** with empty team cards and no wheel. Only Alex’s phone has the **Not on a team yet** list, with one button per team for each player.
+3. Tap a team for each player. The first player placed on a team gets **CAPTAIN** and can save the team name. Other phones can’t move anyone.
+4. **Start writing phrases** unlocks once everyone connected is on a team, every team has a connected member, and every team has a saved name. Late arrivals wait in the list marked “joined late”.
+
+## Walk through a game
+
+Continue from the writing walkthrough. Two or three phrases each keeps the rounds short; the GM can set **Phrases per player** and **Round length** in the lobby.
+
+1. **Start the game.** Every screen shows the round 1 intro (“Describe it”). Each phone taps **Got it**; when every connected player has, the turn screen appears. The GM can skip the wait with **Start the round now**.
+2. The host shows who’s up and their team. The order alternates teams: the first player of team A, then of team B, then the second of team A, and so on. **Disconnect** whoever is up, wait 20–25 seconds, and check their next teammate takes the turn instead.
+3. The GM presses **Start …’s turn**. The active phone shows a 3-2-1 countdown, then the phrase. The host and other phones never show it, only the clock and the score so far.
+4. On the active phone, press **Got it** (+1, new phrase) and **Back** (−1, the previous phrase returns). The GM can **Pause**, change the time with **−10 s / +10 s** while paused, **Resume**, **End turn** and **Reveal** (shows the GM the current phrase).
+5. Let the clock run out. The server ends the turn even if every phone is asleep. Review shows the guessed phrases on every screen. The active phone can step **Back** and **Forward** over the last guesses, and sees the phrase in play when time ran out as **NOT COUNTED**. The GM presses **Proceed**: the points are banked and the next team is up.
+6. Guess the whole pile in one turn. The clock stops, and after **Proceed** round 2 (“Charades”) opens with the same player keeping the time they had left. Round 3 is “One word”.
+7. **Restart previous turn** on the GM’s phone (before the next turn starts) undoes the last Proceed and replays that turn with the chosen time.
+8. Tap emotes on any phone. They pop up at random spots on the host, each a different size and tilt.
+9. After round 3 the results show the winner, or “It’s a tie” for equal top scores. **Play again** returns everyone connected to the lobby with fresh teams; disconnected players are dropped and can rejoin by name.
 
 ## Failure and permission checks
 
@@ -44,9 +67,10 @@ Use six players and two teams for the first run:
 - **Refresh mid-spin:** reload the host or a phone while the wheel is moving. The draft continues from server state, without a new result or duplicated member.
 - **GM disconnect:** disconnect Alex and wait 20–25 seconds. GM passes to the next connected player. Alex’s return does not automatically take GM back.
 - **Disconnected winner:** disconnect or kick a player while they are on the wheel. They are skipped once the server knows they are inactive/removed, and the remaining draft continues. Abrupt phone loss takes the normal presence-detection interval to become known.
-- **Late arrival:** join a new player after **Everyone’s in**. They wait outside the frozen roster. After the wheel ends, the GM can move them onto a team before starting writing. New arrivals after writing starts wait for the next game.
+- **Late arrival:** join a new player after **Everyone’s in**. They wait outside the frozen roster. After the wheel ends, the GM can move them onto a team. During writing or mid-game, a waiting player shows **Put on …** buttons on the GM’s phone; once placed, they join that team’s rotation.
+- **Active player drops mid-turn:** disconnect the active phone during a turn. After 20–25 seconds the turn goes to review (“left the game”); the guessed phrases still count once the GM proceeds. Kicking the active player does the same. A kicked player’s phrases stay in the pile.
 - **Game server unavailable:** stop only the party worker and try a fresh room. After eight seconds the screen shows connection help and **Try again**. Restart the worker: the pending code and settings are retained.
-- **Removed role:** there is no Cavan role, button, flag or moderation queue. Legacy `setCavan` messages are rejected.
+- **Cavan permissions:** only the GM can make or clear Cavan or approve/reject phrases. Designating Cavan after they’ve written sends their phrases back for vetting; clearing Cavan approves anything pending.
 
 For an extra independent local phone outside the desk, open `/play/CODE?device=extra-phone` under `pnpm dev`, enter a new name and join. The `device` suffix is a development-only local storage namespace, not a game-server identity or authorization shortcut.
 
@@ -62,8 +86,11 @@ pnpm typecheck
 pnpm test
 pnpm --filter @tmn/web build
 pnpm --filter @tmn/party e2e
+pnpm --filter @tmn/party e2e:game
 ```
 
-The last command needs the running party worker and takes roughly 40 seconds. It exercises real WebSockets, including host mirrors, role handoff, timed server wheel progression, captain naming, GM corrections, late arrivals, phrase privacy and deletion. `PARTY_HOST` overrides the worker address when needed. Unit/property tests freeze reducer inputs and check invariants, including balanced assignments and the injected clock/RNG.
+The two `e2e` commands need the running party worker. `e2e` takes roughly 40 seconds and exercises real WebSockets, including host mirrors, role handoff, timed server wheel progression, captain naming, GM corrections, late arrivals, phrase privacy and deletion. `e2e:game` (about a minute) plays a whole game: Cavan vetting, the round 1 intro, phrase secrecy mid-turn, a pile-out carried into round 2, the server clock ending a turn, pause/add time/end turn, emotes, results and Play again. `PARTY_HOST` overrides the worker address when needed. Unit/property tests freeze reducer inputs and check invariants, including balanced assignments and the injected clock/RNG; `game.property.test.ts` throws random turn buttons, GM controls, clock jumps and disconnects at a started game.
 
 The six-player browser flow is also checked with independently controlled frames: all screens receive the draft, captain names and writing transition; a phone reload survives a spin; all players can fill their quotas; host/other players cannot see private phrases; and disconnect/reconnect retains identity and phrases.
+
+A full game was also played in headless Firefox with a real host screen and a phone driven through its UI: writing, the round intro, a turn (countdown, Got it, review), results and emotes on the TV.

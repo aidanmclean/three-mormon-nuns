@@ -1755,3 +1755,427 @@ button:disabled {
     animation: none;
   }
 }
+
+/* ---- The game (D31) ---------------------------------------------------- */
+.badge-cavan {
+  background: #fac1a6;
+}
+.own-phrases li.rejected span:first-child {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+.moderation-queue {
+  margin-bottom: 23px;
+}
+.moderation-queue ul {
+  padding: 5px 17px;
+}
+.game-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 96px;
+}
+.round-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.round-banner strong {
+  font-family: var(--font-comic), sans-serif;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+.round-pile {
+  margin-left: auto;
+  font-family: var(--font-typewriter), monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.score-team {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 3px solid var(--foreground);
+  background: #fffaf0;
+  box-shadow: 3px 3px 0 var(--foreground);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.score-team strong {
+  font-family: var(--font-comic), sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+}
+.score-team.playing {
+  background: var(--cyan);
+}
+.score-team.winner {
+  background: var(--yellow);
+}
+.scoreboard-big .score-team {
+  padding: 16px 22px;
+  font-size: 20px;
+}
+.scoreboard-big .score-team strong {
+  font-size: 48px;
+}
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: 24px 22px;
+  text-align: center;
+}
+.game-title {
+  font-family: var(--font-comic), sans-serif;
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+.round-rules {
+  font-size: 18px;
+  font-weight: 600;
+}
+.turn-clock {
+  font-family: var(--font-typewriter), monospace;
+  font-size: 44px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.phrase-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 28px 18px;
+  border: 3px solid var(--foreground);
+  background: var(--yellow);
+  box-shadow: 5px 5px 0 var(--foreground);
+  font-family: var(--font-comic), sans-serif;
+  font-size: 40px;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+.phrase-small {
+  font-size: 26px;
+  padding: 16px;
+}
+.phrase-peek {
+  background: var(--cyan);
+}
+.countdown span {
+  display: block;
+  font-family: var(--font-comic), sans-serif;
+  font-size: 140px;
+  line-height: 1;
+  color: var(--accent);
+}
+.big-next {
+  min-height: 88px;
+  font-size: 28px;
+}
+.game-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gm-controls .game-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.time-adjust {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.restart-previous {
+  text-align: left;
+  font-size: 13px;
+}
+.restart-previous summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.review-fix {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 2px dashed var(--foreground);
+}
+.review-fix .game-actions {
+  flex-direction: row;
+  justify-content: center;
+}
+.guessed-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.guessed-list li {
+  padding: 6px 10px;
+  border: 2px solid var(--foreground);
+  background: #fffaf0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.emote-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 3px solid var(--foreground);
+  background: var(--background);
+}
+.emote-bar button {
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--foreground);
+  background: #fffaf0;
+  font-size: 24px;
+  box-shadow: 2px 2px 0 var(--foreground);
+}
+.emote-bar button:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+/* TV */
+.host-game-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.host-late-join {
+  text-align: center;
+}
+.tv-game {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.tv-stage {
+  min-height: 46vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  text-align: center;
+}
+.tv-title {
+  font-family: var(--font-comic), sans-serif;
+  font-size: clamp(48px, 7vw, 110px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+.tv-rules {
+  font-size: clamp(18px, 2.2vw, 32px);
+  font-weight: 600;
+}
+.tv-clock {
+  font-family: var(--font-typewriter), monospace;
+  font-size: clamp(72px, 12vw, 180px);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.tv-ready {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.tv-ready li {
+  padding: 8px 14px;
+  border: 2px solid var(--foreground);
+  font-size: 20px;
+  opacity: 0.55;
+}
+.tv-ready li.done {
+  background: var(--yellow);
+  opacity: 1;
+}
+.tv-guessed li {
+  font-size: clamp(16px, 2vw, 28px);
+}
+.emote-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 30;
+}
+.emote-float {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: var(--size);
+  translate: -50% -50%;
+  animation: emote-pop var(--dur) cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.emote-float small {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border: 1.5px solid var(--foreground);
+  background: #fffaf0;
+}
+/* Each emote gets its own spot, drift, spin and size from EmoteLayer (D31). */
+@keyframes emote-pop {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(0.3);
+    opacity: 0;
+  }
+  12% {
+    transform: translate(calc(var(--dx) * 0.1), calc(var(--rise) * -0.1))
+      rotate(calc(var(--rot) * -0.5)) scale(1.15);
+    opacity: 1;
+  }
+  55% {
+    transform: translate(calc(var(--dx) * -0.4), calc(var(--rise) * -0.55))
+      rotate(calc(var(--rot) * 0.6)) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), calc(var(--rise) * -1)) rotate(var(--rot))
+      scale(0.9);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .emote-float {
+    animation: emote-fade var(--dur) linear forwards;
+  }
+  @keyframes emote-fade {
+    0%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}
+fieldset.time-adjust,
+fieldset.emote-bar {
+  min-width: 0;
+  margin: 0;
+}
+fieldset.time-adjust {
+  border: 0;
+  padding: 0;
+}
+/* Team mode choice in the GM's lobby (D32) */
+fieldset.team-mode {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+.team-mode legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.team-mode label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 2px solid var(--foreground);
+  background: #fffaf0;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--foreground);
+}
+.team-mode label.selected {
+  background: var(--yellow);
+}
+.team-mode label:has(input:focus-visible) {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.team-mode input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.team-mode-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.team-mode label.selected .team-mode-title::before {
+  content: "✓ ";
+}
+.team-mode-detail {
+  font-size: 12px;
+  color: var(--muted);
+}
+/* GM's one-tap placement list */
+.placement-pool ul {
+  padding: 4px 17px;
+}
+.placement-pool li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.placement-pool li:last-child {
+  border: 0;
+}
+.placement-name {
+  flex: 1;
+  min-width: 90px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.placement-name small {
+  font-weight: 400;
+  color: var(--muted);
+}
+.placement-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.placement-teams .btn-secondary {
+  padding: 6px 10px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

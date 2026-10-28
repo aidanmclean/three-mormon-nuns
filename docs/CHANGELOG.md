@@ -4,6 +4,37 @@ Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE
 
 ## 2026-10-27
 
+- **Added:** manual team picking ([D32](./ARCHITECTURE.md#d32-manual-team-picking-as-an-alternative-to-the-wheel)).
+  - Before **Everyone’s in**, the GM chooses **Spin the wheel** or **Pick them myself**.
+  - In manual mode there's no wheel. The GM places each player from a **Not on a team yet** list, and the first player placed on a team is its captain.
+  - `startTeams { mode? }` defaults to the wheel.
+  - Schema v7 (v6 rooms reset); protocol unchanged at v6.
+- **Changed:** emotes pop up at random spots across the TV, each with its own size, tilt, drift and speed, instead of rising from a line along the bottom.
+- **Fixed:** a stored lobby that fails invariants is now discarded on load instead of rejecting every action forever ([D33](./ARCHITECTURE.md#d33-discard-stored-lobbies-that-fail-invariants-on-load)). This was the `invariant violation; transition rejected [ 'game state/phase mismatch' ]` log: a dev room saved before the game state existed.
+- **Verified:**
+  - 86 unit/property tests.
+  - 61 lobby and 27 game WebSocket checks.
+  - Headless Firefox: the GM chooses manual mode and places players on the phone, the TV mirrors it, and 12 emotes scatter across the TV.
+
+- **Added:** the game loop ([D31](./ARCHITECTURE.md#d31-the-game-loop)).
+  - The GM starts the game once everyone's approved phrases are in.
+  - Three rounds (Describe it, Charades, One word), each with an intro everyone acknowledges (or the GM starts).
+  - Team-alternating rotation that skips offline players.
+  - Turns: a 3-2-1 countdown, Got it / Back, a server-timed clock, review with Back/Forward, and Proceed.
+  - Pile-out carry-over of leftover time (D17), results with ties, and Play again.
+  - GM controls: pause/resume, ±10 s while paused, end turn, reveal, restart previous turn. The GM can also place late joiners mid-game.
+  - Emotes float up on the TV.
+  - New phone game screen, TV game board, and a "Play" progress step.
+- **Restored:** Cavan, the moderated player ([D30](./ARCHITECTURE.md#d30-restore-cavan-the-moderated-player), superseding D27).
+  - The GM designates Cavan and approves or rejects each of Cavan's phrases from a queue only they see.
+  - Rejected phrases don't count, so Cavan writes another.
+  - The game can't start with anything pending.
+- **Changed:** schema and protocol v6; existing rooms reset; deploy party before web. Kicking a player mid-game keeps their phrases in the pile. An active player who drops ends their turn instead of stalling it.
+- **Verified:**
+  - 82 unit/property tests, including a randomized game-loop property test.
+  - 56 lobby and 27 full-game WebSocket checks (`pnpm --filter @tmn/party e2e:game`).
+  - A headless-Firefox game with a real TV and phone: writing, round intro, a full turn on the phone, review, results and emotes.
+
 - **Fixed:** read-only host mirrors no longer disconnect each other when a second host tab opens; player identity still uses newest-socket-wins ([D26](./ARCHITECTURE.md#d26-read-only-host-mirrors-can-coexist)).
 - **Removed:** the nonexistent Cavan role, controls, flags, protocol action and moderation rules ([D27](./ARCHITECTURE.md#d27-remove-the-nonexistent-special-player-role)).
 - **Changed:** **Everyone’s in** closes the roster and starts an automatic server-timed SVG wheel. Assignments are balanced, first-drawn members become captains, captains must save names, and only the GM can correct membership/start writing. Added real private phrase entry with validation, quotas and author-only deletion. Protocol/schema advance to 5; old rooms reset, and party deploys before web ([D28](./ARCHITECTURE.md#d28-everyones-in-starts-a-server-timed-wheel-then-captains-name-teams-and-players-write)).

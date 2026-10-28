@@ -37,9 +37,9 @@ export function Masthead({ label = "PARTY GAME" }: { label?: string }) {
 export function Steps({
   current,
 }: {
-  current: "setup" | "lobby" | "teams" | "writing";
+  current: "setup" | "lobby" | "teams" | "writing" | "play";
 }) {
-  const steps = ["setup", "lobby", "teams", "writing"] as const;
+  const steps = ["setup", "lobby", "teams", "writing", "play"] as const;
   return (
     <ol className="steps" aria-label="Game progress">
       {steps.map((step, i) => (

@@ -27,12 +27,12 @@ describe("creation and protocol", () => {
       }).success,
     ).toBe(false);
   });
-  it("rejects removed roles, self-selection, shuffle, and client timer/winner messages", () => {
+  it("rejects self-selection, shuffle, and client timer/winner messages", () => {
     for (const action of [
-      { type: "setCavan", playerId: "x" },
       { type: "joinTeam", teamId: "team-1" },
       { type: "shuffleTeams" },
       { type: "_draftTick" },
+      { type: "_turnTick" },
       { type: "spin", winner: "x" },
     ])
       expect(ClientMessage.safeParse(action).success).toBe(false);
@@ -222,5 +222,92 @@ describe("captain naming and GM corrections", () => {
     expect(
       l.act(gm, { type: "nameTeam", teamId: "team-2", name: "Too late" }),
     ).toMatchObject({ ok: false, code: "WRONG_PHASE" });
+  });
+});
+
+describe("manual teams (D32)", () => {
+  it("skips the wheel: nobody is placed, and only the GM places players", () => {
+    const l = lobbyWith("Alex", "Blair", "Casey", "Drew");
+    const gm = l.id("Alex");
+    ok(l.act(gm, { type: "startTeams", mode: "manual" }));
+    expect(l.state.phase).toBe("teams");
+    expect(l.state.draft).toMatchObject({ mode: "manual", stage: "complete" });
+    expect(l.state.lastDraw).toBeNull();
+    expect(Object.values(l.state.players).every((p) => !p.teamId)).toBe(true);
+    // The alarm has nothing to do.
+    l.tick(WHEEL_SPIN_MS * 10);
+    const before = l.state;
+    expect(ok(l.act(null, { type: "_draftTick" })).state).toBe(before);
+    expect(
+      l.act(l.id("Blair"), {
+        type: "addToTeam",
+        teamId: "team-1",
+        playerId: l.id("Blair"),
+      }),
+    ).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(checkInvariants(l.state)).toEqual([]);
+  });
+  it("makes the first player placed on a team its captain, and gates writing as usual", () => {
+    const l = lobbyWith("Alex", "Blair", "Casey", "Drew");
+    const gm = l.id("Alex");
+    ok(l.act(gm, { type: "startTeams", mode: "manual" }));
+    const place = (name: string, teamId: string) =>
+      ok(l.act(gm, { type: "addToTeam", teamId, playerId: l.id(name) }));
+    place("Casey", "team-1");
+    place("Alex", "team-1");
+    place("Drew", "team-2");
+    expect(l.state.teams["team-1"]?.captainId).toBe(l.id("Casey"));
+    expect(l.state.teams["team-2"]?.captainId).toBe(l.id("Drew"));
+    ok(
+      l.act(l.id("Casey"), {
+        type: "nameTeam",
+        teamId: "team-1",
+        name: "Nuns",
+      }),
+    );
+    ok(
+      l.act(l.id("Drew"), {
+        type: "nameTeam",
+        teamId: "team-2",
+        name: "Monks",
+      }),
+    );
+    // Blair is still unassigned.
+    expect(l.act(gm, { type: "confirmTeams" })).toMatchObject({
+      ok: false,
+      code: "INVALID",
+    });
+    place("Blair", "team-2");
+    ok(l.act(gm, { type: "confirmTeams" }));
+    expect(l.state.phase).toBe("writing");
+    expect(checkInvariants(l.state)).toEqual([]);
+  });
+  it("puts late arrivals in the waiting room until the GM places them", () => {
+    const l = lobbyWith("Alex", "Blair");
+    const gm = l.id("Alex");
+    ok(l.act(gm, { type: "startTeams", mode: "manual" }));
+    ok(l.act(null, { type: "join", name: "Casey" }));
+    const casey =
+      Object.values(l.state.players).find((p) => p.name === "Casey")?.id ?? "";
+    expect(l.state.players[casey]?.waiting).toBe(true);
+    ok(
+      l.act(gm, {
+        type: "addToTeam",
+        teamId: "team-2",
+        playerId: casey,
+      }),
+    );
+    expect(l.state.players[casey]).toMatchObject({
+      waiting: false,
+      teamId: "team-2",
+    });
+  });
+  it("defaults to the wheel and rejects unknown modes", () => {
+    const l = lobbyWith("Alex", "Blair");
+    ok(l.act(l.id("Alex"), { type: "startTeams" }));
+    expect(l.state.draft?.mode).toBe("wheel");
+    expect(
+      ClientMessage.safeParse({ type: "startTeams", mode: "draft" }).success,
+    ).toBe(false);
   });
 });

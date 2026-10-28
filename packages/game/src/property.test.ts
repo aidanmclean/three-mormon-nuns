@@ -122,7 +122,10 @@ function toAction(
     kick: { type: "kick", playerId: target },
     rename: { type: "rename", playerId: target, name: s.name },
     setGamemaster: { type: "setGamemaster", playerId: target },
-    startTeams: { type: "startTeams" },
+    startTeams: {
+      type: "startTeams",
+      mode: [undefined, "wheel", "manual", "random"][s.mask % 4],
+    },
     nameTeam: { type: "nameTeam", teamId, name: s.name },
     addToTeam: {
       type: "addToTeam",

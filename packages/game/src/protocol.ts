@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { ConfigSchema } from "./config";
-import { PHRASE_MAX_LEN } from "./constants";
+import {
+  ADD_TIME_MAX_MS,
+  EMOTES,
+  PHRASE_MAX_LEN,
+  TURN_MAX_MS,
+  TURN_MIN_MS,
+} from "./constants";
 import type { LobbyView } from "./view";
 
 // Raw strings are bounded here; names are cleaned and fully validated in the
@@ -32,7 +38,10 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("kick"), playerId: Id }),
   z.strictObject({ type: z.literal("rename"), playerId: Id, name: RawName }),
   z.strictObject({ type: z.literal("setGamemaster"), playerId: Id }),
-  z.strictObject({ type: z.literal("startTeams") }),
+  z.strictObject({
+    type: z.literal("startTeams"),
+    mode: z.enum(["wheel", "manual"]).optional(),
+  }),
   z.strictObject({ type: z.literal("nameTeam"), teamId: Id, name: RawName }),
   z.strictObject({ type: z.literal("addToTeam"), teamId: Id, playerId: Id }),
   z.strictObject({
@@ -46,7 +55,36 @@ export const ClientMessage = z.discriminatedUnion("type", [
     text: z.string().max(PHRASE_MAX_LEN * 2),
   }),
   z.strictObject({ type: z.literal("deletePhrase"), phraseId: Id }),
+  // Cavan (D30): GM-only.
+  z.strictObject({ type: z.literal("setCavan"), playerId: Id.nullable() }),
+  z.strictObject({ type: z.literal("approvePhrase"), phraseId: Id }),
+  z.strictObject({ type: z.literal("rejectPhrase"), phraseId: Id }),
+  // The game loop (D31). Clients send intents; the server owns time and scores.
+  z.strictObject({ type: z.literal("startGame") }),
+  z.strictObject({ type: z.literal("acknowledge") }),
+  z.strictObject({ type: z.literal("beginRound") }),
+  z.strictObject({ type: z.literal("startTurn") }),
+  z.strictObject({ type: z.literal("next") }),
+  z.strictObject({ type: z.literal("back") }),
+  z.strictObject({ type: z.literal("forward") }),
+  z.strictObject({ type: z.literal("pauseTimer") }),
+  z.strictObject({ type: z.literal("resumeTimer") }),
+  z.strictObject({
+    type: z.literal("addTime"),
+    ms: z.int().min(-ADD_TIME_MAX_MS).max(ADD_TIME_MAX_MS),
+  }),
+  z.strictObject({ type: z.literal("endTurn") }),
+  z.strictObject({ type: z.literal("proceed") }),
+  z.strictObject({
+    type: z.literal("restartPrevTurn"),
+    ms: z.int().min(TURN_MIN_MS).max(TURN_MAX_MS),
+  }),
+  z.strictObject({ type: z.literal("reveal") }),
+  z.strictObject({ type: z.literal("playAgain") }),
+  z.strictObject({ type: z.literal("emote"), kind: z.enum(EMOTES) }),
 ]);
+
+export type EmoteKind = (typeof EMOTES)[number];
 
 export type ClientMessage = z.infer<typeof ClientMessage>;
 
@@ -71,6 +109,8 @@ export type ServerMessage =
   | { type: "joined"; as: "player"; playerId: string; token: string }
   | { type: "joined"; as: "screen"; token: string }
   | { type: "error"; code: ErrorCode; message: string }
+  /** A reaction from a player, broadcast to every socket (D31). */
+  | { type: "emote"; playerId: string; name: string; kind: EmoteKind }
   /** Sent right before the server closes this socket on purpose. */
   | { type: "bye"; reason: ByeReason }
   /** Protocol version mismatch: the client should reload the page (§6.8). */

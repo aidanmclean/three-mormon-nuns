@@ -1,8 +1,14 @@
 "use client";
 
-import { type LobbyView, NAME_MAX_LEN, type PlayerView } from "@tmn/game";
+import {
+  type LobbyView,
+  NAME_MAX_LEN,
+  type PlayerView,
+  type TeamMode,
+} from "@tmn/game";
 import { useState } from "react";
 import { Masthead, Steps } from "@/app/brand";
+import { GameScreen } from "@/app/game-screen";
 import { Settings } from "@/app/settings";
 import { TeamBoard } from "@/app/team-board";
 import { WritingScreen } from "@/app/writing-screen";
@@ -23,16 +29,19 @@ export function LobbyScreen({
   const amGm = me?.isGamemaster ?? false;
   const gm = view.players.find((p) => p.isGamemaster);
   const active = view.players.filter((p) => p.status === "active").length;
+  const [teamMode, setTeamMode] = useState<TeamMode>("wheel");
   const phase =
     view.phase === "teams"
       ? "teams"
       : view.phase === "writing"
         ? "writing"
-        : "lobby";
+        : view.phase === "lobby"
+          ? "lobby"
+          : "play";
 
   return (
     <div className="site-shell">
-      <Masthead label="LOBBY" />
+      <Masthead label={phase === "play" ? "PLAY" : "LOBBY"} />
       <main className="player-shell">
         <Steps current={phase} />
         <div className="room-ticket">
@@ -49,7 +58,9 @@ export function LobbyScreen({
         </div>
         {view.phase !== "lobby" ? (
           <>
-            {view.phase === "writing" ? (
+            {phase === "play" ? (
+              <GameScreen view={view} send={send} clockOffset={clockOffset} />
+            ) : view.phase === "writing" ? (
               <WritingScreen view={view} send={send} />
             ) : (
               <TeamBoard view={view} send={send} clockOffset={clockOffset} />
@@ -66,6 +77,11 @@ export function LobbyScreen({
                       player={player}
                       isYou={player.id === view.you}
                       canManage={amGm}
+                      cavanEditable={
+                        view.phase === "teams" || view.phase === "writing"
+                      }
+                      teams={view.teams}
+                      placeable={phase === "play" || view.phase === "writing"}
                       send={send}
                     />
                   ))}
@@ -92,10 +108,19 @@ export function LobbyScreen({
                       player={player}
                       isYou={player.id === view.you}
                       canManage={amGm}
+                      cavanEditable
+                      teams={view.teams}
+                      placeable={false}
                       send={send}
                     />
                   ))}
                 </ul>
+                {view.players.some((p) => p.isCavan) && (
+                  <p className="fine-print px-4 pb-4">
+                    The game master approves or rejects every phrase{" "}
+                    {view.players.find((p) => p.isCavan)?.name} writes.
+                  </p>
+                )}
               </section>
               <section className="paper-panel">
                 <div className="panel-heading">
@@ -116,18 +141,21 @@ export function LobbyScreen({
             <div className="lobby-action">
               {amGm ? (
                 <>
+                  <TeamModeChoice value={teamMode} onChange={setTeamMode} />
                   <button
                     type="button"
                     className="btn-primary"
                     disabled={active < view.config.teamCount}
-                    onClick={() => send({ type: "startTeams" })}
+                    onClick={() => send({ type: "startTeams", mode: teamMode })}
                   >
                     Everyone’s in <span aria-hidden>→</span>
                   </button>
                   <p className="fine-print">
                     {active < view.config.teamCount
                       ? `Waiting for ${view.config.teamCount - active} more connected player(s), so every team has someone.`
-                      : "This closes the roster and starts the wheel."}
+                      : teamMode === "wheel"
+                        ? "This closes the roster and starts the wheel."
+                        : "This closes the roster. Then you put each player on a team."}
                   </p>
                 </>
               ) : (
@@ -143,15 +171,67 @@ export function LobbyScreen({
   );
 }
 
+const TEAM_MODES: { mode: TeamMode; title: string; detail: string }[] = [
+  {
+    mode: "wheel",
+    title: "Spin the wheel",
+    detail: "Random, balanced teams, one name at a time.",
+  },
+  {
+    mode: "manual",
+    title: "Pick them myself",
+    detail: "You put each player on a team.",
+  },
+];
+
+/** The GM chooses how teams are made before closing the roster (D32). */
+function TeamModeChoice({
+  value,
+  onChange,
+}: {
+  value: TeamMode;
+  onChange: (mode: TeamMode) => void;
+}) {
+  return (
+    <fieldset className="team-mode">
+      <legend>How should teams be made?</legend>
+      {TEAM_MODES.map((option) => (
+        <label
+          key={option.mode}
+          className={value === option.mode ? "selected" : ""}
+        >
+          <input
+            type="radio"
+            name="team-mode"
+            value={option.mode}
+            checked={value === option.mode}
+            onChange={() => onChange(option.mode)}
+          />
+          <span className="team-mode-title">{option.title}</span>
+          <span className="team-mode-detail">{option.detail}</span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
 function PlayerRow({
   player,
   isYou,
   canManage,
+  cavanEditable,
+  teams,
+  placeable,
   send,
 }: {
   player: PlayerView;
   isYou: boolean;
   canManage: boolean;
+  /** Cavan can be chosen until the game starts (D30). */
+  cavanEditable: boolean;
+  teams: LobbyView["teams"];
+  /** Late joiners can be put on a team after team selection (D31). */
+  placeable: boolean;
   send: Send;
 }) {
   const [open, setOpen] = useState(false);
@@ -172,6 +252,8 @@ function PlayerRow({
           {inactive && <span className="text-xs font-normal"> · offline</span>}
         </span>
         {player.isGamemaster && <span className="badge">GM</span>}
+        {player.isCavan && <span className="badge badge-cavan">CAVAN</span>}
+        {player.waiting && <span className="badge">WAITING</span>}
         {canManage && (
           <button
             type="button"
@@ -198,6 +280,39 @@ function PlayerRow({
             </button>
           )}
 
+          {cavanEditable && !player.isGamemaster && (
+            <button
+              type="button"
+              className="btn-secondary text-xs"
+              onClick={() =>
+                send({
+                  type: "setCavan",
+                  playerId: player.isCavan ? null : player.id,
+                })
+              }
+            >
+              {player.isCavan ? "Not Cavan" : "Make Cavan"}
+            </button>
+          )}
+          {placeable &&
+            player.waiting &&
+            !inactive &&
+            teams.map((team) => (
+              <button
+                key={team.id}
+                type="button"
+                className="btn-secondary text-xs"
+                onClick={() =>
+                  send({
+                    type: "addToTeam",
+                    teamId: team.id,
+                    playerId: player.id,
+                  })
+                }
+              >
+                Put on {team.name}
+              </button>
+            ))}
           <button
             type="button"
             className="btn-secondary text-xs"

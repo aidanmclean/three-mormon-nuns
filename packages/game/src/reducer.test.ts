@@ -11,7 +11,7 @@ describe("createLobby (host screen)", () => {
       createLobby("ABCD", { actorId: null, now: T0, newId: makeIds() }),
     );
     expect(res.state.players).toEqual({});
-    expect(res.state.roles).toEqual({ gamemasterId: null });
+    expect(res.state.roles).toEqual({ gamemasterId: null, cavanId: null });
     expect(res.state.config).toEqual(DEFAULT_CONFIG);
     expect(res.state.config.maxWordsPerPhrase).toBe(3);
     expect(res.state.expiresAt).toBe(T0 + IDLE_EXPIRY_MS);
@@ -186,7 +186,7 @@ describe("game master actions", () => {
     const res = ok(l.act(gm, { type: "kick", playerId: alex }));
     expect(res.effects).toEqual([{ type: "kicked", playerId: alex }]);
     expect(l.state.players[alex]).toBeUndefined();
-    expect(l.state.roles).toEqual({ gamemasterId: gm });
+    expect(l.state.roles).toEqual({ gamemasterId: gm, cavanId: null });
   });
 
   it("can't kick yourself or a stranger", () => {

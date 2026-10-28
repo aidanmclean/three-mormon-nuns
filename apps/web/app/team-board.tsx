@@ -19,10 +19,24 @@ export function TeamBoard({
   const me = view.players.find((p) => p.id === view.you);
   const gm = view.players.find((p) => p.isGamemaster);
   const complete = view.draft?.stage === "complete";
+  const manual = view.draft?.mode === "manual";
+  const placing = !!send && !!me?.isGamemaster && complete;
   const unassigned = view.players.filter(
     (p) => !p.teamId && !p.waiting && p.status === "active",
   );
   const waiting = view.players.filter((p) => p.waiting);
+  const heading = manual
+    ? "Pick the teams"
+    : complete
+      ? "Name your teams"
+      : "Wheel of names";
+  const subheading = manual
+    ? placing
+      ? "Put each player on a team. The first on each team is captain and names it."
+      : `${gm?.name ?? "The game master"} is picking the teams. The first on each team is captain and names it.`
+    : complete
+      ? "Captains: save a name for your team."
+      : "Players are assigned one at a time. The first on each team is captain.";
   const ready =
     complete &&
     !unassigned.length &&
@@ -38,12 +52,8 @@ export function TeamBoard({
       className={`team-selection ${complete ? "draft-complete" : "draft-running"}`}
     >
       <div className="page-heading">
-        <h1>{complete ? "Name your teams" : "Wheel of names"}</h1>
-        <p>
-          {complete
-            ? "Captains: save a name for your team."
-            : "Players are assigned one at a time. The first on each team is captain."}
-        </p>
+        <h1>{heading}</h1>
+        <p>{subheading}</p>
       </div>
       {view.lastDraw && (
         <NameWheel
@@ -52,13 +62,17 @@ export function TeamBoard({
           clockOffset={clockOffset}
         />
       )}
-      {complete && unassigned.length > 0 && (
-        <p className="waiting-note mb-5">
-          Unassigned: {unassigned.map((p) => p.name).join(", ")}. The game
-          master can place them below.
-        </p>
+      {placing && send ? (
+        <PlacementPool view={view} send={send} />
+      ) : (
+        complete &&
+        unassigned.length > 0 && (
+          <p className="waiting-note mb-5">
+            Not on a team yet: {unassigned.map((p) => p.name).join(", ")}.
+          </p>
+        )
       )}
-      {waiting.length > 0 && (
+      {!placing && waiting.length > 0 && (
         <p className="waiting-note mb-5">
           Joined after “Everyone’s in”: {waiting.map((p) => p.name).join(", ")}.
           {complete && " The game master can add them to a team."}
@@ -101,6 +115,46 @@ export function TeamBoard({
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+/** GM only: everyone connected who isn't on a team, one tap per team (D32). */
+function PlacementPool({ view, send }: { view: LobbyView; send: Send }) {
+  const people = view.players.filter((p) => !p.teamId && p.status === "active");
+  if (!people.length) return null;
+  return (
+    <section className="placement-pool paper-panel mb-5">
+      <div className="panel-heading">
+        <h2>Not on a team yet</h2>
+        <span className="badge">{people.length}</span>
+      </div>
+      <ul>
+        {people.map((p) => (
+          <li key={p.id}>
+            <span className="placement-name">
+              {p.name}
+              {p.id === view.you && " (you)"}
+              {p.waiting && <small> · joined late</small>}
+            </span>
+            <span className="placement-teams">
+              {view.teams.map((team) => (
+                <button
+                  key={team.id}
+                  type="button"
+                  className="btn-secondary"
+                  aria-label={`Put ${p.name} on ${team.name}`}
+                  onClick={() =>
+                    send({ type: "addToTeam", teamId: team.id, playerId: p.id })
+                  }
+                >
+                  {team.name}
+                </button>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

@@ -2,9 +2,16 @@ import { isValidCode } from "./code";
 import { type Config, ConfigSchema, DEFAULT_CONFIG } from "./config";
 import { IDLE_EXPIRY_MS, SCHEMA_VERSION } from "./constants";
 import { advanceDraft, changeTeam, startDraft } from "./draft";
+import {
+  gmGameAction,
+  inGame,
+  normalizeGame,
+  playerGameAction,
+  turnTick,
+} from "./game";
 import { nameKey, validateName } from "./names";
-import { phraseAction } from "./phrases";
-import type { ClientMessage, ErrorCode } from "./protocol";
+import { moderationAction, phraseAction } from "./phrases";
+import type { ClientMessage, EmoteKind, ErrorCode } from "./protocol";
 import type { LobbyState, Player, PlayerId } from "./types";
 
 /** Actions only the server shell issues. They aren't in ClientMessage, so clients can't send them. */
@@ -13,7 +20,9 @@ export type ServerAction =
   | { type: "_presence"; active: PlayerId[]; inactive: PlayerId[] }
   /** Extends expiry while people are still connected. */
   | { type: "_touch" }
-  | { type: "_draftTick" };
+  | { type: "_draftTick" }
+  /** The turn deadline passed (D31). */
+  | { type: "_turnTick" };
 
 export type Action = Exclude<ClientMessage, { type: "create" }> | ServerAction;
 
@@ -31,7 +40,9 @@ export interface Ctx {
 export type Effect =
   | { type: "bound"; playerId: PlayerId; token: string }
   | { type: "screenBound"; token: string }
-  | { type: "kicked"; playerId: PlayerId };
+  | { type: "kicked"; playerId: PlayerId }
+  /** Broadcast a reaction; not a state change (D31). */
+  | { type: "emote"; playerId: PlayerId; kind: EmoteKind };
 
 export type Result =
   | { ok: true; state: LobbyState; effects: Effect[] }
@@ -78,8 +89,9 @@ export function createLobby(
       lastDraw: null,
       draft: null,
       phrases: {},
+      game: null,
       screenToken,
-      roles: { gamemasterId: null },
+      roles: { gamemasterId: null, cavanId: null },
       createdAt: ctx.now,
       expiresAt: ctx.now + IDLE_EXPIRY_MS,
     },
@@ -94,7 +106,10 @@ export function createLobby(
 export function reduce(state: LobbyState, action: Action, ctx: Ctx): Result {
   const result = apply(state, action, ctx);
   if (!result.ok || result.state === state) return result;
-  let next = normalizeRoles(normalizeTeams(result.state));
+  let next = normalizeGame(
+    normalizeRoles(normalizeTeams(result.state)),
+    ctx.now,
+  );
   // Presence sweeps run every few seconds and shouldn't count as activity.
   if (action.type !== "_presence")
     next = { ...next, expiresAt: ctx.now + IDLE_EXPIRY_MS };
@@ -107,6 +122,8 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       return presence(state, action.active, action.inactive);
     case "_draftTick":
       return advanceDraft(state, ctx);
+    case "_turnTick":
+      return turnTick(state, ctx);
     case "_touch":
       return done({ ...state });
     case "join":
@@ -138,9 +155,30 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
   }
   if (action.type === "submitPhrase" || action.type === "deletePhrase")
     return phraseAction(state, action, actor, ctx);
+  // The active player's buttons, round intros and emotes (D31).
+  if (["next", "back", "forward", "acknowledge", "emote"].includes(action.type))
+    return playerGameAction(state, action, actor, ctx);
   if (actor.id !== state.roles.gamemasterId) {
     return fail("FORBIDDEN", "Only the game master can do that.");
   }
+  if (["setCavan", "approvePhrase", "rejectPhrase"].includes(action.type))
+    return moderationAction(state, action);
+  if (
+    [
+      "startGame",
+      "beginRound",
+      "startTurn",
+      "pauseTimer",
+      "resumeTimer",
+      "addTime",
+      "endTurn",
+      "proceed",
+      "restartPrevTurn",
+      "reveal",
+      "playAgain",
+    ].includes(action.type)
+  )
+    return gmGameAction(state, action, ctx);
 
   switch (action.type) {
     case "updateConfig": {
@@ -161,7 +199,7 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       return done({ ...state, config });
     }
     case "startTeams":
-      return startDraft(state, ctx);
+      return startDraft(state, ctx, action.mode ?? "wheel");
     case "confirmTeams": {
       if (state.phase !== "teams")
         return fail("WRONG_PHASE", "Select teams first.");
@@ -193,11 +231,14 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
         return fail("INVALID", "You can't kick yourself.");
       const { [target.id]: _removed, ...players } = state.players;
       const roles = { ...state.roles };
-      const phrases = Object.fromEntries(
-        Object.entries(state.phrases).filter(
-          ([, p]) => p.authorId !== target.id,
-        ),
-      );
+      // Once the game has started their phrases stay in the pile (D31).
+      const phrases = inGame(state.phase)
+        ? state.phrases
+        : Object.fromEntries(
+            Object.entries(state.phrases).filter(
+              ([, p]) => p.authorId !== target.id,
+            ),
+          );
       return done({ ...state, players, roles, phrases }, [
         { type: "kicked", playerId: target.id },
       ]);
@@ -217,6 +258,11 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       if (!target) return fail("INVALID", "That player isn't in the lobby.");
       if (target.status !== "active")
         return fail("INVALID", `${target.name} isn't connected right now.`);
+      if (target.id === state.roles.cavanId)
+        return fail(
+          "INVALID",
+          "Cavan can't be game master: the GM vets Cavan.",
+        );
       return done({
         ...state,
         roles: { ...state.roles, gamemasterId: target.id },
@@ -298,9 +344,13 @@ function presence(
  * to the earliest-joined active player.
  */
 function normalizeRoles(state: LobbyState): LobbyState {
+  let { gamemasterId, cavanId } = state.roles;
+  if (cavanId !== null && !state.players[cavanId]) cavanId = null;
   const everyone = Object.values(state.players).sort(byJoinOrder);
-  const firstActive = everyone.find((p) => p.status === "active");
-  let { gamemasterId } = state.roles;
+  // Prefer someone other than Cavan, since the GM vets Cavan (D30).
+  const firstActive =
+    everyone.find((p) => p.status === "active" && p.id !== cavanId) ??
+    everyone.find((p) => p.status === "active");
 
   const gm = gamemasterId === null ? undefined : state.players[gamemasterId];
   if (!gm || (gm.status !== "active" && firstActive)) {
@@ -308,8 +358,9 @@ function normalizeRoles(state: LobbyState): LobbyState {
   }
 
   const { roles } = state;
-  if (gamemasterId === roles.gamemasterId) return state;
-  return { ...state, roles: { gamemasterId } };
+  if (gamemasterId === roles.gamemasterId && cavanId === roles.cavanId)
+    return state;
+  return { ...state, roles: { gamemasterId, cavanId } };
 }
 
 function newPlayer(name: string, ctx: Ctx, waiting: boolean): Player {

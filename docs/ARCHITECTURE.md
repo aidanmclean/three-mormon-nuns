@@ -51,26 +51,27 @@ A Kahoot-style take on Monikers / Fishbowl.
 
 ### 1.1 Roles
 
-| Role                 | Who                                                                                        | Can                                                                                                                                                                                                                                    |
-| -------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Host screen**      | The device that created the lobby: a TV or laptop everyone can see. **Not a player** (D18) | Shows the code, players, timer, scores and emotes. No controls: like Jackbox or Kahoot, it just runs the game                                                                                                                          |
-| **Game master (GM)** | A player. The first to join; the GM can hand the role to anyone connected                  | **Controls the game:** settings, kick, rename, hand off GM, move late joiners onto a team, start the game, run turns (`start_turn`, `end_turn`, `pause_timer`, `add_time` while paused, `restart_prev_turn`, `reveal`), **Play again** |
-| **Team captain**     | First player on each team                                                                  | Save their own team name after wheel assignment; the GM controls membership                                                                                                                                                            |
-| **Active player**    | Whoever's turn it is                                                                       | See the current phrase, press `next` (got it) and `back` (undo)                                                                                                                                                                        |
-| **Everyone**         | Any player                                                                                 | Send emotes (thumbs up, thumbs down, tomato, …)                                                                                                                                                                                        |
+| Role                 | Who                                                                                        | Can                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Host screen**      | The device that created the lobby: a TV or laptop everyone can see. **Not a player** (D18) | Shows the code, players, timer, scores and emotes. No controls: like Jackbox or Kahoot, it just runs the game                                                                                                                                                                                                                     |
+| **Game master (GM)** | A player. The first to join; the GM can hand the role to anyone connected (except Cavan)   | **Controls the game:** settings, kick, rename, hand off GM, designate Cavan and vet Cavan's phrases, place late joiners on a team, start the game, run turns (`startTurn`, `endTurn`, `pauseTimer`/`resumeTimer`, `addTime` while paused, `restartPrevTurn`, `reveal`), **Proceed** after each turn, **Play again** ✅ (D30, D31) |
+| **Cavan**            | One player the GM designates (optional; never the GM)                                      | Nothing extra. Cavan is the **moderated** player: every phrase Cavan writes waits until the GM approves or rejects it. Rejected phrases don't count, so Cavan writes another ✅ (D30)                                                                                                                                             |
+| **Team captain**     | First player on each team                                                                  | Save their own team name after wheel assignment; the GM controls membership                                                                                                                                                                                                                                                       |
+| **Active player**    | Whoever's turn it is                                                                       | See the current phrase, press **Got it** (`next`) and **Back** (undo); in review, Back/Forward to settle the last guess ✅                                                                                                                                                                                                        |
+| **Everyone**         | Any player                                                                                 | Tap **Got it** on each round intro; send emotes (laugh, clap, fire, thumbs, tomato) that float up on the TV ✅                                                                                                                                                                                                                    |
 
 ### 1.2 Flow
 
-| Stage         | Phase (§5)                                | What happens                                                                                                                                                                    |
-| ------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0. Lobby      | `lobby`                                   | The host screen creates the lobby and shows the code; players join on their phones with code + name; the first player is GM and can adjust the host’s initial settings ✅ (D21) |
-| 0b. Teams     | `teams`                                   | GM presses **Everyone’s in**; the server wheel assigns the frozen roster; first assigned on each team is captain; captains save names; GM can correct teams ✅ (D28)            |
-| 1. Writing    | `writing`                                 | Players write private phrases (3 each by default), validated against config; host/others see progress counts ✅. Timed rounds remain 🚧                                         |
-| 2. Rounds 1–3 | `roundIntro`, then turns                  | Each round opens with an explainer that every device acknowledges; then turns alternate between teams until the pile is empty                                                   |
-| Turn          | `turnReady` → `turnActive` → `turnReview` | See the turn rules below                                                                                                                                                        |
-| End           | `results`                                 | After round 3 the team with the most points wins. Equal top scores are a tie, with no tiebreaker. The GM can **Play again**                                                     |
+| Stage         | Phase (§5)                                | What happens                                                                                                                                                                                                                                                        |
+| ------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Lobby      | `lobby`                                   | The host screen creates the lobby and shows the code; players join on their phones with code + name; the first player is GM and can adjust the host’s initial settings ✅ (D21)                                                                                     |
+| 0b. Teams     | `teams`                                   | GM picks **Spin the wheel** or **Pick them myself**, then presses **Everyone’s in**. The server wheel assigns the frozen roster, or the GM places everyone by hand; first assigned on each team is captain; captains save names; GM can correct teams ✅ (D28, D32) |
+| 1. Writing    | `writing`                                 | Players write private phrases (3 each by default); Cavan's wait for the GM's approval; the GM starts the game once every connected player's phrases are approved ✅ (D30)                                                                                           |
+| 2. Rounds 1–3 | `roundIntro`, then turns                  | Each round opens with its rules; every connected player taps Got it (or the GM starts it); turns alternate between teams until the pile is empty ✅ (D31)                                                                                                           |
+| Turn          | `turnReady` → `turnActive` → `turnReview` | See the turn rules below ✅                                                                                                                                                                                                                                         |
+| End           | `results`                                 | After round 3 the team with the most points wins. Equal top scores are a tie, with no tiebreaker. The GM can **Play again** ✅                                                                                                                                      |
 
-**Turn rules** (house rules, confirmed 2026-10-26; 🚧 built in the turn-loop slice; data model in D13):
+**Turn rules** (house rules, confirmed 2026-10-26; ✅ built 2026-10-27; data model in D13, D17, D31):
 
 1. Round 1 starts with player 1 of team A. Turns then alternate teams in a fixed order: A1, B1, A2, B2, … With more teams: A1, B1, C1, A2, … Each team cycles through its own players, so a smaller team simply wraps around sooner.
 2. The game master starts the turn. The active player gets the turn length (1 minute by default) and sees one phrase at a time on their phone while their team guesses.
@@ -123,7 +124,7 @@ These were added after the design board and are the main drivers of [§5.6](#56-
 
 - **apps/web** serves the UI. It holds no game state on the server; every live interaction goes over the WebSocket.
 - **apps/party** is a Cloudflare Worker. The URL `/parties/lobby/<CODE>` is routed to the Durable Object instance named `<CODE>`, so **each lobby is its own single-threaded server** with its own memory and storage.
-- **packages/game** is plain TypeScript shared by both apps: constants, types, the message protocol, and (🚧) the rules reducer and validation.
+- **packages/game** is plain TypeScript shared by both apps: constants, types, the message protocol, the pure rules reducer (lobby, draft, phrases, game loop), views and invariants.
 
 Web and party **deploy separately** (Vercel and Cloudflare), so for a while after each deploy they can be on different versions. [§6.8](#68-deploys--version-skew) covers how that's handled.
 
@@ -540,7 +541,7 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ### D27: Remove the nonexistent special player role
 
-**Status:** Accepted · 2026-10-27 (supersedes D16)
+**Status:** Superseded by D30 · 2026-10-27 (supersedes D16)
 
 **Decision:** Remove the Cavan role, `setCavan` message, stored role ID, view flag, controls, badges and moderation rules. All eligible players write phrases under the same quota and validation rules, with no moderation queue.
 
@@ -576,6 +577,129 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 **Consequences:** `/dev` returns 404 in production and production ignores device namespaces. The helper does not bypass any game permissions or add server-side test endpoints. Host and phone previews use the same components, protocol and reducer as real play. Device IDs are 1–40 ASCII letters/digits/hyphens. Existing normal session keys remain unchanged. No dependency or config-file changes. [TESTING.md](./TESTING.md) provides the full wheel/writing and failure checklist.
 
+### D30: Restore Cavan, the moderated player
+
+**Status:** Accepted · 2026-10-27 (supersedes D27; restores the intent of D16)
+
+**Decision:**
+
+- `roles.cavanId` is back. The GM designates or clears Cavan with `setCavan` during the lobby, teams or writing phases. The GM can't be Cavan, and Cavan can't be handed GM; automatic GM handoff prefers anyone else.
+- Every phrase Cavan writes is `pending`. Only the GM sees pending text, in a moderation queue, and answers with `approvePhrase` / `rejectPhrase`.
+- A rejected phrase stays visible to its author (struck through) but doesn't count toward the quota, so Cavan writes a replacement. The same text can't be resubmitted.
+- Designating Cavan after they've written sends their approved phrases back for vetting; clearing Cavan approves anything pending.
+- `startGame` refuses while anything is pending, and the pile only ever holds approved phrases.
+
+**Why:** D27 removed the role on the belief that it wasn't part of the game. The user confirmed it is ("add Cavan functionality back"): Cavan is a real person whose phrases need vetting.
+
+**Alternatives:**
+
+- A general moderation setting: already rejected in D16.
+- Hiding Cavan's phrases from everyone including the GM: defeats the purpose.
+
+**Consequences:**
+
+- `Phrase.status` (`approved | pending | rejected`) is persisted.
+- `PlayerView` gains `isCavan` (public), `phraseCount` (approved + pending) and `approvedCount`; `LobbyView.moderation` is filled only for the GM.
+- Invariants: pending only exists in writing and only for Cavan, and the Cavan player must exist.
+- Part of schema/protocol v6 with D31.
+
+### D31: The game loop
+
+**Status:** Accepted · 2026-10-27 (builds D13 and D17)
+
+**Decision:** `packages/game/src/game.ts` implements rounds and turns as pure reducer functions, with a persisted `LobbyState.game`:
+
+- **Round, pile and scores:** `round`, `pile` (approved phrase ids not yet guessed this round) and `scores`.
+- **Rotation (D13):** `teamCursor` and a per-team `memberCursor`. A dropped player is skipped for their next teammate, and a team with nobody connected is skipped (Q1).
+- **Turns:** `acknowledged` for round intros, the current `turn`, and a `previous` snapshot for `restartPrevTurn`.
+  - A turn is `seen` / `cursor` / `maxCursor` (D13), plus clock fields: `remainingMs`; `endsAt` while running; `countdownEndsAt` for the 3-2-1; and `paused`.
+  - It also records `endedBy` (`timer | pile | gm | left`), `carried` (D17) and `revealed`.
+- **Phase flow:**
+  1. `startGame` enters `roundIntro`.
+  2. Every connected player acknowledges, or the GM uses `beginRound`, and the game enters `turnReady` with the next player prepared.
+  3. The GM uses `startTurn`, which draws the first phrase and starts a 3 s countdown before the clock.
+  4. In `turnActive`, `next` and `back` change the score. The clock ends via the server alarm (`_turnTick`), `endTurn`, the pile running out, or the active player dropping.
+  5. `turnReview`, where only back and forward are allowed.
+  6. The GM uses `proceed`, which leads to the next player's `turnReady`, the next round (carrying leftover time after a pile-out, D17), or `results`.
+- **Time:** the shell schedules the Durable Object alarm at the running turn's `endsAt`. A `next` that arrives after the deadline but before the alarm is treated as time up.
+- **GM controls:** `pauseTimer` / `resumeTimer`; `addTime ±ms`, only while paused or before the turn starts, with the turn clamped to 1 s–10 min; `endTurn`; `reveal`, which toggles the GM's view of the current phrase; `restartPrevTurn { ms }`; and `playAgain`.
+- **Disconnects:** when the active player is marked inactive (after the 20 s presence window), their turn goes to review with `endedBy: "left"`, rather than the auto-pause originally sketched in §5.6.
+  - The shell only reports presence transitions (D15), so a pause on the first missed ping would need a new signal.
+  - The GM can still pause manually, and `restartPrevTurn` covers false alarms.
+- **Kicks:** once the game starts, a kicked player's phrases stay in the pile.
+- **Late joiners:** the GM can put a waiting player on a team during writing or mid-game (`addToTeam`, waiting players only). They join that team's rotation.
+- **Emotes:** `emote { kind }` from any player is an effect, not a state change. The shell broadcasts `{ type: "emote", playerId, name, kind }` and skips re-pushing views.
+- **Play again:** removes inactive players, clears teams, phrases and game, and returns to `lobby`. Roles are kept.
+
+**Why:**
+
+- These are the house rules (§1.2), built on decisions D13 and D17.
+- A pure module makes every rule unit- and property-testable without Workers.
+- Server-owned deadlines keep sleeping phones from stalling turns.
+
+**Alternatives:**
+
+- Client-run timers: phones sleep, and clocks drift.
+- Storing a turn as a log of next/back events: rejected in D13.
+
+**Consequences:**
+
+- Schema/protocol v6; existing rooms reset; deploy party before web.
+- Views: only the active player gets `turn.currentPhrase` (and the GM while revealing). `turn.guessed` is public only in review. The TV never sees a phrase that is still in play.
+- New constants: `TURN_COUNTDOWN_MS`, `ADD_TIME_MAX_MS`, `TURN_MIN_MS`, `TURN_MAX_MS`, `EMOTES`.
+- The 15-minute results expiry is not separately enforced; the 2 h idle expiry still applies.
+
+### D32: Manual team picking as an alternative to the wheel
+
+**Status:** Accepted · 2026-10-27 (extends D28)
+
+**Decision:**
+
+- `startTeams` takes an optional `mode: "wheel" | "manual"`, defaulting to `"wheel"`. The GM chooses it on the lobby screen above **Everyone’s in**.
+- `"manual"` freezes the roster exactly as the wheel does, including late arrivals waiting. It then creates the teams with the draft already `complete`: `remainingIds: []`, no `lastDraw`, nothing scheduled. From there the existing post-wheel rules apply unchanged:
+  - only the GM uses `addToTeam` / `removeFromTeam`
+  - the first player placed on a team becomes its captain (`normalizeTeams` picks the first active member in assignment order)
+  - captains or the GM save team names
+  - `confirmTeams` requires everyone connected to be on a team, every team to have a connected member, and every name to be saved
+- `TeamDraft.mode` records the choice, so screens can say "Pick the teams" instead of showing a wheel. The GM's phone gets a **Not on a team yet** list with one button per team, which is also shown after a wheel when someone is unassigned.
+
+**Why:** the user asked for a manual option, for groups that want to choose their own sides. Reusing the completed-draft state means no new permissions or phase.
+
+**Alternatives:**
+
+- A separate `manualTeams` phase: more states and invariants for the same rules.
+- A config setting: it's a per-game choice made at the moment of closing the roster, not a house rule.
+- Letting players pick their own team: rejected in D28.
+
+**Consequences:**
+
+- Schema v7, since `draft.mode` is persisted; v6 rooms reset.
+- The protocol stays v6. The new field is optional, and the view only gains `draft.mode`, so old clients keep working. Deploy party first as usual.
+- New invariants: `mode` is valid, and a manual draft is always complete.
+- Possible follow-up: "spin the wheel for whoever's left". `nextSpin` already only draws unassigned players.
+
+### D33: Discard stored lobbies that fail invariants on load
+
+**Status:** Accepted · 2026-10-27
+
+**Decision:** `onStart` runs `checkInvariants` on the stored state as well as comparing `schemaVersion`. A stored lobby with violations is logged (`discarding invalid stored lobby`) and deleted, exactly like an old-schema one.
+
+**Why:**
+
+- A dev room created between two edits of schema v6 had no `game` field. It loaded as valid v6, and then every transition failed `game state/phase mismatch` and was rejected.
+- The room was stuck forever: the log showed `invariant violation; transition rejected` on each action.
+- A reset is better than a zombie room, and lobbies are ephemeral (D2).
+
+**Alternatives:**
+
+- Migrating or patching missing fields: there is nothing worth keeping, and every patch is code to maintain.
+- Relying on schema bumps alone: this didn't catch the dev case, and wouldn't catch a bug that persisted a bad state.
+
+**Consequences:**
+
+- Players in such a room see "lobby not found" and can start a new one.
+- Loading costs one invariant check per Durable Object wake.
+
 ---
 
 ## 4. What is implemented today
@@ -592,33 +716,46 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ✅ **Slice 2: comic rebrand, setup, automatic wheel draft and phrase writing** (2026-10-27; D21, D24–D29). Host configuration precedes room creation. Read-only host mirrors coexist. The GM closes the roster, the server automatically spins and assigns balanced teams, first-drawn captains save names, and the GM can correct memberships before starting writing. Writing enforces quotas and private author-only phrase views. The development-only `/dev` desk displays independent real host/phone screens for local testing.
 
-Turn gameplay, results and play again are still 🚧. Phrase collection is implemented and ends at an all-ready summary.
+✅ **Slice 3: Cavan and the game loop** (2026-10-27; D30, D31). Cavan's phrases are vetted by the GM. The GM starts the game once everyone's approved phrases are in. Three rounds follow (describe, charades, one word), each with an acknowledged intro and team-alternating turns:
+
+- a 3-2-1 countdown, Got it / Back, and a server-timed clock
+- pause, add time, end turn, reveal and restart-previous-turn for the GM
+- review with back/forward, Proceed, and pile-out carry-over
+- results with ties, and Play again
+- disconnected players skipped, late joiners placed mid-game, and emotes on the TV
+
+✅ **Manual teams and emote scatter** (2026-10-27; D32, D33). The GM can pick teams by hand instead of spinning the wheel. Emotes pop up at random spots across the TV, each with its own size, tilt and drift. Broken stored lobbies are discarded on load.
+
+Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransactions) and the profanity filter.
 
 ### `packages/game` (`@tmn/game`)
 
-| File            | What's in it                                                                                                                                                                                          |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `constants.ts`  | Protocol and schema versions (both 5), resource limits, heartbeat/presence timings, expiry/rate limits, ROUNDS and ROUND_RULES.                                                                       |
-| `code.ts`       | `normalizeCode`, `isValidCode`, `randomCode`.                                                                                                                                                         |
-| `names.ts`      | `cleanName` (NFC; strips control and format characters such as zero-width spaces and bidi overrides; collapses whitespace), `nameKey` (case-insensitive identity) and `validateName`.                 |
-| `config.ts`     | `ConfigSchema` (zod, ranges from `CONFIG_RANGES`) and `DEFAULT_CONFIG` (60 s turns, 2 teams, 3 phrases each, up to 3 words per phrase, 20 players; no special roles or moderation, D27).              |
-| `types.ts`      | LobbyState v5: players, GM, teams with saved-name flags, draft queue/stage/deadline, public spin snapshots, private phrase records and screen key. Turn state remains future work.                    |
-| `protocol.ts`   | Strict bounded create/screen/join, GM controls, startTeams, nameTeam, addToTeam/removeFromTeam, confirmTeams, submitPhrase/deletePhrase. Removed roles and client wheel/timer results are rejected.   |
-| `reducer.ts`    | Creation, joins, roles, GM actions, private writing, normalization and server draft ticks; `draft.ts` owns spin selection/timing and team edits, and `phrases.ts` owns author-only phrase operations. |
-| `invariants.ts` | Valid unique player/team names, roles, config/capacity, team order, exact membership lists, valid connected captains whenever possible, and token isolation. Runs after each transition in the shell. |
-| `view.ts`       | `viewFor(state, viewer)`. It copies fields one by one, so tokens can't leak.                                                                                                                          |
+| File            | What's in it                                                                                                                                                                                                                                                                                                                                         |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `constants.ts`  | Protocol version 6 and schema version 7, resource limits, heartbeat/presence timings, expiry/rate limits, ROUNDS and ROUND_RULES, turn countdown/time limits and EMOTES (D31).                                                                                                                                                                       |
+| `code.ts`       | `normalizeCode`, `isValidCode`, `randomCode`.                                                                                                                                                                                                                                                                                                        |
+| `names.ts`      | `cleanName` (NFC; strips control and format characters such as zero-width spaces and bidi overrides; collapses whitespace), `nameKey` (case-insensitive identity) and `validateName`.                                                                                                                                                                |
+| `config.ts`     | `ConfigSchema` (zod, ranges from `CONFIG_RANGES`) and `DEFAULT_CONFIG` (60 s turns, 2 teams, 3 phrases each, up to 3 words per phrase, 20 players; no moderation setting: Cavan is a role, D30).                                                                                                                                                     |
+| `types.ts`      | LobbyState v7: players, GM and Cavan, teams with saved-name flags, draft mode (wheel/manual, D32) and queue/stage/deadline, public spin snapshots, private phrase records with status, the game (round, pile, scores, rotation cursors, turn, previous-turn snapshot) and screen key.                                                                |
+| `protocol.ts`   | Strict bounded create/screen/join, GM controls, startTeams, nameTeam, addToTeam/removeFromTeam, confirmTeams, submitPhrase/deletePhrase, Cavan moderation (setCavan/approvePhrase/rejectPhrase), game actions (startGame … playAgain) and emotes. Client wheel/timer results are never accepted.                                                     |
+| `game.ts`       | The game loop (D31): `startGame`, rotation (`prepare`), turn actions for the active player (`next`/`back`/`forward`), round intros (`acknowledge`, `beginRound`), GM clock controls, `proceed` with the D17 carry-over, `restartPrevTurn`, `playAgain`, the `_turnTick` deadline and `normalizeGame` (dropped/kicked players, auto-start of intros). |
+| `reducer.ts`    | Creation, joins, roles, GM actions, private writing, normalization and server draft ticks; `draft.ts` owns spin selection/timing and team edits, and `phrases.ts` owns author-only phrase operations; `phrases.ts` also handles Cavan moderation, and `game.ts` the game loop.                                                                       |
+| `invariants.ts` | Valid unique player/team names, roles, config/capacity, team order, exact membership lists, valid connected captains whenever possible, and token isolation. Runs after each transition in the shell. Also checks Cavan, phrase status, and the game: round, pile, scores, cursors and the turn's shape per phase.                                   |
+| `view.ts`       | `viewFor(state, viewer)`. It copies fields one by one, so tokens can't leak. Live phrases reach only the active player (or a revealing GM); Cavan's pending phrases only the GM.                                                                                                                                                                     |
 
-**Tests (53, Vitest):**
+**Tests (86, Vitest):**
 
 - unit tests for every action and permission, all the join and rejoin paths, role handoff and expiry
 - view leak tests
 - a fast-check property test that throws 300 random sequences of lobby/team actions and garbage messages at the reducer. It asserts the reducer never throws, never mutates its input (inputs are deep-frozen) and never breaks an invariant. Coverage guards require the original lobby action types to succeed at least once; dedicated team tests cover the new success/error paths.
+- Cavan tests (`cavan.test.ts`) and game-loop tests (`game.test.ts`, with helpers in `test/game.ts`) for every turn rule in §1.2
+- a second property test (`game.property.test.ts`, 150 runs) that starts a real game and throws turn buttons, GM controls, clock jumps, presence flips, joins, kicks and garbage at it, with coverage guards for the core loop
 
 ### `apps/party` (`@tmn/party`)
 
 [`src/lobby.ts`](../apps/party/src/lobby.ts) is the shell ([§5.2](#52-reducer--server-shell)):
 
-- **`onStart`** loads persisted state, discarding it if `schemaVersion` doesn't match, and registers the `ping` → `pong` auto-response.
+- **`onStart`** loads persisted state, discarding it if `schemaVersion` doesn't match or it fails `checkInvariants` (D33), and registers the `ping` → `pong` auto-response.
 - **`onConnect`** answers a wrong `?v=` with `reload` and caps connections at `MAX_CONNECTIONS`.
 - **`onMessage`** runs the boundary checks in order (text only, byte size, token-bucket rate limit, JSON, zod), then `create` or the reducer. The actor always comes from the socket's attachment.
 - **`commit`** stops at errors, no-ops, invariant violations and failed storage writes. Otherwise it:
@@ -627,8 +764,9 @@ Turn gameplay, results and play again are still 🚧. Phrase collection is imple
   3. reschedules the alarm
   4. pushes `viewFor` to every bound socket
 - **`onAlarm`** runs the presence sweep (D15). When `expiresAt` has passed and nobody is active, it expires the lobby (`bye: expired`, then `deleteAll`); if someone is still active, it extends the expiry instead.
+- The alarm also covers the running turn's `endsAt` and dispatches `_turnTick` (D31). `emote` effects are broadcast as `{ type: "emote" }` to every bound socket, and a commit whose only result is emotes skips re-pushing views.
 
-[`scripts/e2e-lobby.mjs`](../apps/party/scripts/e2e-lobby.mjs) runs 56 checks over real WebSockets with `pnpm --filter @tmn/party e2e` (it needs `pnpm dev` running). It covers:
+[`scripts/e2e-lobby.mjs`](../apps/party/scripts/e2e-lobby.mjs) runs 61 checks over real WebSockets with `pnpm --filter @tmn/party e2e` (it needs `pnpm dev` running). It covers:
 
 - the version gate, create and join
 - `CODE_TAKEN`, `LOBBY_NOT_FOUND` and `NAME_TAKEN`
@@ -637,6 +775,9 @@ Turn gameplay, results and play again are still 🚧. Phrase collection is imple
 - rate limiting and token takeover
 - a silent client going inactive and then rejoining by name
 - kick
+- manual team picking (D32)
+
+[`scripts/e2e-game.mjs`](../apps/party/scripts/e2e-game.mjs) (`pnpm --filter @tmn/party e2e:game`, 27 checks) plays a whole four-player game: Cavan vetting, the round 1 intro, mid-turn phrase secrecy, a pile-out carried into round 2, the server alarm ending a turn, pause/add time/end turn, emotes, results and Play again.
 
 `src/index.ts`, `wrangler.jsonc` and `worker-configuration.d.ts` are as before. In dev the worker listens on `0.0.0.0:8787` (D12).
 
@@ -651,10 +792,15 @@ Turn gameplay, results and play again are still 🚧. Phrase collection is imple
   - status screens: connecting, the name prompt (with a small, muted "Rejoining? Use the same name as before" hint under the button), lobby not found, kicked, expired, replaced
   - a reconnecting banner and an error toast
   - `lobby-screen.tsx`: the code, the player list (ASCII face/status markers plus a dimmed name and an "offline" label; role badges; the GM's ⋯ menu to hand off game master, rename, kick) and settings (dropdowns for the GM, read-only for everyone else)
+  - `writing-screen.tsx`: phrase forms with status badges (pending/rejected for Cavan), the GM's moderation queue (Approve/Reject) and **Start the game** (D30).
+  - `game-screen.tsx`: the phone during a game (D31): round intro with **Got it**, turn ready (with ±10 s and restart-previous for the GM), the active player's countdown, phrase card, **Got it**/**Back**, the GM's pause/resume/end/reveal controls, review with Back/Forward and **Proceed**, results with **Play again**, and an emote bar.
+- **`/host/[code]`** in game phases renders `game-board.tsx`: who's up, the clock, round rules, scoreboard, the guessed list in review and the winner. Floating emotes (`EmoteLayer`) cover the whole TV. Shared pieces (clock hook, scoreboard, round banner, emote icons) are in `game-bits.tsx`.
+- **`team-board.tsx`** shows the wheel, or "Pick the teams" in manual mode (D32). The GM gets a **Not on a team yet** list with one button per team. The lobby's `TeamModeChoice` (wheel or manual) sits above **Everyone’s in**.
+- **Emotes** (`EmoteLayer` in `game-bits.tsx`): each burst gets a random `seed` when it arrives (`use-lobby.ts`). A hash of the seed sets CSS variables for its position, drift, rise, tilt, size and duration, so emotes scatter across the screen instead of rising in a line.
 - **`lib/use-lobby.ts`** wraps `usePartySocket` with `?v=PROTOCOL_VERSION`.
   - `lobby-connection.tsx` provides host/player startup feedback: after 8 seconds without a lobby response it shows a connection error and retry control, while automatic reconnects continue. Creation errors are visible immediately. Retry preserves the pending room and settings (D25).
   - On every (re)connect it sends `create` or `join` from the saved session.
-  - It handles `joined` (stores the token), `state`, `error` (join errors go to the name form), `bye` (stops reconnecting) and `reload`.
+  - It handles `joined` (stores the token), `state`, `error` (join errors go to the name form), `emote` (kept for 3.5 s as `emotes`), `bye` (stops reconnecting) and `reload`.
   - It sends `ping` every 5 s and forces a reconnect if pongs stop.
 - **`/dev`**: development-only real multi-device desk (D29); each preview has independent namespaced storage and real sockets, with reload/disconnect controls. Production returns 404.
 - **`lib/session.ts`** keeps a per-lobby `{ name, token, creating }` in `localStorage`, with every access guarded.
@@ -662,7 +808,7 @@ Turn gameplay, results and play again are still 🚧. Phrase collection is imple
 - **`app/api/lan-address/route.ts`** is a dev-only `GET` returning this machine's private IPv4s, Wi-Fi first, for the host screen (D20). It returns 404 in production.
 - **`brand.tsx`**, **`settings.tsx`** and **`team-board.tsx`** share the comic masthead, local cartoon illustration, progress strip, rule fields, real timed SVG wheel, captain naming, live team cards and private phrase forms between devices. `layout.tsx` configures the three fonts; `icon.svg` is the brand favicon. [ASSETS.md](./ASSETS.md) records the illustration’s source and license.
 - **`globals.css`** defines the shared `field`, `btn-primary` and `btn-secondary` classes as Tailwind v4 `@utility` blocks. Plain rules inside `@layer components` were silently dropped by the v4 pipeline.
-- **Not offered in the UI yet:** the profanity filter. It's stored in config but not enforced until the writing slice.
+- **Not offered in the UI yet:** the profanity filter. It's stored in config but not enforced.
 
 ### Repo
 
@@ -671,7 +817,7 @@ Turn gameplay, results and play again are still 🚧. Phrase collection is imple
 
 ## 5. Lobby server design
 
-> Parts marked ✅ are built (slice 1, see [§4](#4-what-is-implemented-today)); everything else is 🚧, the agreed design. Build against it, and update it if reality forces a change ([§0](#0-working-on-this-project)).
+> Parts marked ✅ are built (slices 1–3, see [§4](#4-what-is-implemented-today)); everything else is 🚧, the agreed design. Build against it, and update it if reality forces a change ([§0](#0-working-on-this-project)).
 
 ### 5.1 State & persistence
 
@@ -686,17 +832,18 @@ Turn gameplay, results and play again are still 🚧. Phrase collection is imple
 - Every accepted transition is persisted **before** it is broadcast.
 - The stored blob carries a `schemaVersion` ([§6.5](#65-state-integrity)).
 
-**`LobbyState`.** Implemented schema v5 contains:
+**`LobbyState`.** Implemented schema v7 contains:
 
 - `code`, `phase`, validated `config`, `schemaVersion`, creation/expiry timestamps;
 - `players` with server-only session tokens, status, waiting flag and team ID;
-- `roles: { gamemasterId }` and the server-only `screenToken`;
+- `roles: { gamemasterId, cavanId }` (D30) and the server-only `screenToken`;
 - ordered `teams` with `name`, `nameConfirmed`, `captainId` and assignment-ordered `memberIds`;
-- `draft: { remainingIds, nextTeamIndex, stage: "spinning" | "revealing" | "complete", nextAt } | null`;
+- `draft: { mode: "wheel" | "manual", remainingIds, nextTeamIndex, stage: "spinning" | "revealing" | "complete", nextAt } | null` (D32);
 - `lastDraw: { sequence, teamId, playerId, candidates: { id, name }[], startedAt, endsAt } | null`;
-- private `phrases: Record<id, { id, authorId, text }>`.
+- private `phrases: Record<id, { id, authorId, text, status: "approved" | "pending" | "rejected" }>` (D30);
+- `game: { round, pile, scores, teamCursor, memberCursor, acknowledged, turn, previous } | null` (D31; see `types.ts` for `Turn` and `GameSnapshot`).
 
-The `teams` phase is an automatic draft followed by captain naming and optional GM membership corrections. `confirmTeams` enters the implemented writing phase. Future turn slices add round/pile/timer/score state, bumping schema version when needed (D13, D17).
+The `teams` phase is an automatic draft followed by captain naming and optional GM membership corrections. `confirmTeams` enters writing, and `startGame` creates `game` (D31); `playAgain` clears it.
 
 ### 5.2 Reducer & server shell
 
@@ -719,59 +866,64 @@ Server-originated actions (`timeout`, `presenceSweep`) go through the same reduc
 
 ### 5.3 Per-player views (secrecy)
 
-After each change the server sends every connection `viewFor(state, playerId)` rather than the raw state.
+After each change the server sends every connection `viewFor(state, playerId)` rather than the raw state. ✅
 
-| Viewer                             | What their view includes                                              |
-| ---------------------------------- | --------------------------------------------------------------------- |
-| Active player, during `turnActive` | the current phrase                                                    |
-| Game master, after `reveal()`      | the active player's phrases                                           |
-| Each author                        | their own phrase text only                                            |
-| Everyone                           | names, teams, statuses, scores, phase, timer, counts only for phrases |
+| Viewer                                            | What their view includes                                                                   |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Active player, during `turnActive` / `turnReview` | `game.turn.currentPhrase`: the phrase being described (or, in review, the one not counted) |
+| Game master, while `reveal` is on                 | the same current phrase                                                                    |
+| Game master, during writing                       | `moderation`: Cavan's pending phrases with their text (D30)                                |
+| Each author                                       | their own phrases, with status (approved / pending / rejected)                             |
+| Everyone, during `turnReview`                     | `game.turn.guessed`: the phrases guessed that turn (they were said out loud)               |
+| Everyone                                          | names, teams, Cavan/GM flags, scores, phase, round, timer, counts only for phrases         |
 
-Tokens never appear in any view. Emotes are broadcast without touching state.
+The host screen gets `viewFor(state, null)`, so it never sees a phrase still in play. Tokens never appear in any view. Emotes are broadcast without touching state. Tests assert each of these rules.
 
 ### 5.4 Actions & permissions
 
 The reducer enforces this table, and rejects anything not listed. ✅ marks actions that are built.
 
-| Action                                         | Who                                          | Phase                      | Notes                                                                                                                                                                                                                                                                                                           |
-| ---------------------------------------------- | -------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ✅ `create { config? }`                        | the host screen                              | before the lobby exists    | Creates an empty lobby; the screen gets a token (D14, D18). `CODE_TAKEN` if the lobby exists                                                                                                                                                                                                                    |
-| ✅ `screen { token }`                          | the host screen                              | any                        | Reconnects the screen; `FORBIDDEN` with the wrong token. Allows additional read-only mirrors (D26)                                                                                                                                                                                                              |
-| ✅ `join { name, token? }`                     | unjoined socket                              | any                        | Rules in [§5.6](#56-presence-disconnects--rejoin). `LOBBY_NOT_FOUND` before `create`                                                                                                                                                                                                                            |
-| ✅ `updateConfig { config }`                   | game master                                  | `lobby`                    | Partial. Out-of-range values are rejected; `maxPlayers` can't drop below the current player count                                                                                                                                                                                                               |
-| ✅ `kick { playerId }`                         | game master                                  | any                        | Not yourself. Removes the player and closes their sockets (the GM can't kick themselves). Mid-turn, their turn ends 🚧                                                                                                                                                                                          |
-| ✅ `rename { playerId, name }`                 | game master                                  | any                        | Must stay unique (changing only the casing of your own name is fine)                                                                                                                                                                                                                                            |
-| ✅ `setGamemaster { playerId }`                | game master                                  | any                        | Target must be active                                                                                                                                                                                                                                                                                           |
-| ✅ `startTeams`                                | game master                                  | `lobby`                    | At least teamCount connected players (one per team, D22)                                                                                                                                                                                                                                                        |
-| ✅ `nameTeam`; `addToTeam`, `removeFromTeam`   | name: own captain or GM; membership: GM only | `teams`, draft complete    | Name must be cleaned, unique and explicitly saved. GM can place waiting connected players before writing.                                                                                                                                                                                                       |
-| ✅ `confirmTeams`                              | game master                                  | `teams`                    | Wheel complete, every eligible connected player assigned, every team connected and explicitly named → writing                                                                                                                                                                                                   |
-| `assignWaiting { playerId, teamId }`           | game master                                  | after `teams`              | Moves a late joiner out of the waiting room into a team's rotation                                                                                                                                                                                                                                              |
-| ✅ `submitPhrase { text }`                     | connected, non-waiting player on a team      | `writing`                  | Quota, length, word count and duplicate validation; private text only for author.                                                                                                                                                                                                                               |
-| ✅ `deletePhrase { phraseId }`                 | author                                       | `writing`                  | Own phrases only; frees a quota slot.                                                                                                                                                                                                                                                                           |
-| `startGame`                                    | game master                                  | `writing`                  | Every **active**, non-waiting team member has their phrase quota → round 1 `roundIntro`                                                                                                                                                                                                                         |
-| `acknowledge`                                  | any active player                            | `roundIntro`               | When every active player has acknowledged → `turnReady`                                                                                                                                                                                                                                                         |
-| `startTurn`                                    | game master                                  | `turnReady`                | Countdown on the active player's device, then `turnActive`                                                                                                                                                                                                                                                      |
-| `next`                                         | active player                                | `turnActive`               | `cursor + 1`; draws a new phrase when at the end of `seen` (D13). Guessing the last phrase in the pile freezes the timer → `turnReview`, `endedBy: "pile"` (D17)                                                                                                                                                |
-| `back`                                         | active player                                | `turnActive`, `turnReview` | `cursor − 1`, never below 0: the point comes off and the previous phrase shows again                                                                                                                                                                                                                            |
-| `forward`                                      | active player                                | `turnReview`               | `cursor + 1`, up to `maxCursor`. Redo only; no new phrases                                                                                                                                                                                                                                                      |
-| `pauseTimer`, `resumeTimer`                    | game master                                  | `turnActive`               |                                                                                                                                                                                                                                                                                                                 |
-| `addTime { ms }`                               | game master                                  | `turnActive`, paused only  | Positive or negative; remaining time clamped                                                                                                                                                                                                                                                                    |
-| `endTurn`                                      | game master                                  | `turnActive`               | → `turnReview`                                                                                                                                                                                                                                                                                                  |
-| `proceed`                                      | game master                                  | `turnReview`               | Adds `cursor` to the team's score and removes `seen[0…cursor)` from the pile. `endedBy: "pile"` keeps the same player and the time left (D17): next round's `roundIntro` if the pile is empty (`results` after round 3), else `turnReady` in the same round. Otherwise → `turnReady` for the next team's player |
-| `restartPrevTurn { ms }`                       | game master                                  | `turnReady`                | Undoes the last `proceed` from its snapshot; same player, chosen time                                                                                                                                                                                                                                           |
-| `reveal`                                       | game master                                  | `turnActive`               | Shows the GM the active player's phrases                                                                                                                                                                                                                                                                        |
-| `emote { kind }`                               | anyone                                       | any                        | Broadcast only; rate-limited                                                                                                                                                                                                                                                                                    |
-| `playAgain`                                    | game master                                  | `results`                  | [§5.7](#57-play-again)                                                                                                                                                                                                                                                                                          |
-| ✅ `_presence { active, inactive }` _(server)_ | shell sweep                                  | any                        | Status transitions only (D15)                                                                                                                                                                                                                                                                                   |
-| ✅ `_touch` _(server)_                         | shell alarm                                  | any                        | Extends `expiresAt` while someone is still active                                                                                                                                                                                                                                                               |
-| `timeout` _(server)_                           | alarm                                        | `turnActive`               | Timer reached zero → `turnReview`                                                                                                                                                                                                                                                                               |
+| Action                                         | Who                                          | Phase                                     | Notes                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------- | -------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ✅ `create { config? }`                        | the host screen                              | before the lobby exists                   | Creates an empty lobby; the screen gets a token (D14, D18). `CODE_TAKEN` if the lobby exists                                                                                                                                                                                                                    |
+| ✅ `screen { token }`                          | the host screen                              | any                                       | Reconnects the screen; `FORBIDDEN` with the wrong token. Allows additional read-only mirrors (D26)                                                                                                                                                                                                              |
+| ✅ `join { name, token? }`                     | unjoined socket                              | any                                       | Rules in [§5.6](#56-presence-disconnects--rejoin). `LOBBY_NOT_FOUND` before `create`                                                                                                                                                                                                                            |
+| ✅ `updateConfig { config }`                   | game master                                  | `lobby`                                   | Partial. Out-of-range values are rejected; `maxPlayers` can't drop below the current player count                                                                                                                                                                                                               |
+| ✅ `kick { playerId }`                         | game master                                  | any                                       | Not yourself. Removes the player and closes their sockets (the GM can't kick themselves). Mid-turn, their turn goes to review; once the game has started their phrases stay in the pile ✅ (D31)                                                                                                                |
+| ✅ `rename { playerId, name }`                 | game master                                  | any                                       | Must stay unique (changing only the casing of your own name is fine)                                                                                                                                                                                                                                            |
+| ✅ `setGamemaster { playerId }`                | game master                                  | any                                       | Target must be active                                                                                                                                                                                                                                                                                           |
+| ✅ `startTeams { mode? }`                      | game master                                  | `lobby`                                   | At least teamCount connected players (one per team, D22). `mode`: `wheel` (default) or `manual`, where the GM places everyone (D32)                                                                                                                                                                             |
+| ✅ `nameTeam`; `addToTeam`, `removeFromTeam`   | name: own captain or GM; membership: GM only | `teams`, draft complete                   | Name must be cleaned, unique and explicitly saved. GM can place waiting connected players before writing.                                                                                                                                                                                                       |
+| ✅ `confirmTeams`                              | game master                                  | `teams`                                   | Wheel complete, every eligible connected player assigned, every team connected and explicitly named → writing                                                                                                                                                                                                   |
+| ✅ `addToTeam` (late joiners)                  | game master                                  | `writing`, game phases                    | Waiting players only; they join that team's rotation (D31)                                                                                                                                                                                                                                                      |
+| ✅ `submitPhrase { text }`                     | connected, non-waiting player on a team      | `writing`                                 | Quota, length, word count and duplicate validation; private text only for author.                                                                                                                                                                                                                               |
+| ✅ `deletePhrase { phraseId }`                 | author                                       | `writing`                                 | Own phrases only; frees a quota slot.                                                                                                                                                                                                                                                                           |
+| ✅ `setCavan { playerId \| null }`             | game master                                  | `lobby`–`writing`                         | Not the GM. New Cavan's approved phrases go back to pending; clearing approves pending (D30)                                                                                                                                                                                                                    |
+| ✅ `approvePhrase`, `rejectPhrase`             | game master                                  | `writing`                                 | Pending (Cavan's) phrases only. Rejected ones don't count toward the quota (D30)                                                                                                                                                                                                                                |
+| ✅ `startGame`                                 | game master                                  | `writing`                                 | Nothing pending, and every **active** team member has their quota of approved phrases → round 1 `roundIntro`                                                                                                                                                                                                    |
+| ✅ `acknowledge`                               | any active team member                       | `roundIntro`                              | When every connected team member has acknowledged → `turnReady`                                                                                                                                                                                                                                                 |
+| ✅ `beginRound`                                | game master                                  | `roundIntro`                              | Skip waiting for acknowledgements                                                                                                                                                                                                                                                                               |
+| ✅ `startTurn`                                 | game master                                  | `turnReady`                               | Countdown on the active player's device, then `turnActive`                                                                                                                                                                                                                                                      |
+| ✅ `next`                                      | active player                                | `turnActive`                              | `cursor + 1`; draws a new phrase when at the end of `seen` (D13). Guessing the last phrase in the pile freezes the timer → `turnReview`, `endedBy: "pile"` (D17)                                                                                                                                                |
+| ✅ `back`                                      | active player                                | `turnActive`, `turnReview`                | `cursor − 1`, never below 0: the point comes off and the previous phrase shows again                                                                                                                                                                                                                            |
+| ✅ `forward`                                   | active player                                | `turnReview`                              | `cursor + 1`, up to `maxCursor`. Redo only; no new phrases                                                                                                                                                                                                                                                      |
+| ✅ `pauseTimer`, `resumeTimer`                 | game master                                  | `turnActive`                              |                                                                                                                                                                                                                                                                                                                 |
+| ✅ `addTime { ms }`                            | game master                                  | `turnReady`, or `turnActive` while paused | ±60 s per action; the turn is clamped to 1 s–10 min                                                                                                                                                                                                                                                             |
+| ✅ `endTurn`                                   | game master                                  | `turnActive`                              | → `turnReview`                                                                                                                                                                                                                                                                                                  |
+| ✅ `proceed`                                   | game master                                  | `turnReview`                              | Adds `cursor` to the team's score and removes `seen[0…cursor)` from the pile. `endedBy: "pile"` keeps the same player and the time left (D17): next round's `roundIntro` if the pile is empty (`results` after round 3), else `turnReady` in the same round. Otherwise → `turnReady` for the next team's player |
+| ✅ `restartPrevTurn { ms }`                    | game master                                  | `turnReady`, `roundIntro`, `results`      | Undoes the last `proceed` from its snapshot; same player, chosen time (1 s–10 min)                                                                                                                                                                                                                              |
+| ✅ `reveal`                                    | game master                                  | `turnActive`                              | Shows the GM the active player's phrases                                                                                                                                                                                                                                                                        |
+| ✅ `emote { kind }`                            | any connected player                         | any                                       | Broadcast only, never stored; per-socket rate limit applies                                                                                                                                                                                                                                                     |
+| ✅ `playAgain`                                 | game master                                  | `results`                                 | [§5.7](#57-play-again)                                                                                                                                                                                                                                                                                          |
+| ✅ `_presence { active, inactive }` _(server)_ | shell sweep                                  | any                                       | Status transitions only (D15)                                                                                                                                                                                                                                                                                   |
+| ✅ `_touch` _(server)_                         | shell alarm                                  | any                                       | Extends `expiresAt` while someone is still active                                                                                                                                                                                                                                                               |
+| ✅ `_turnTick` _(server)_                      | alarm                                        | `turnActive`                              | The deadline passed → `turnReview`, `endedBy: "timer"`                                                                                                                                                                                                                                                          |
 
 `_draftTick` is server-only, advances due spins/reveals through the reducer, and is not part of ClientMessage. Self-selection, captain recruitment and instant shuffles were removed (D28).
 
 Every accepted action except `_presence` pushes `expiresAt` to now + 2 h.
 
-**Writing:** no moderation role or queue exists (D27). Authors see their own text; other viewers receive counts.
+**Writing:** Cavan's phrases wait in the GM's moderation queue (D30). Authors see their own text and its status; other viewers receive counts.
 
 ### 5.5 Timers & the alarm
 
@@ -783,7 +935,7 @@ Every accepted action except `_presence` pushes `expiresAt` to now + 2 h.
 **One alarm, three jobs.** A Durable Object has a single alarm. It is always set to the earliest of:
 
 - ✅ `draft.nextAt`, which resolves a spin or starts the next one (D28)
-- 🚧 `turn.endsAt`, which triggers `timeout` and puts the turn into review. Proceeding is always the GM's call. When the pile runs out first, `endsAt` is cleared and the time left is kept in `remainingMs` (D17).
+- ✅ `turn.endsAt` (only while `turnActive` and not paused), which runs `_turnTick` and puts the turn into review. Proceeding is always the GM's call. When the pile runs out first, `endsAt` is cleared and the time left is kept in `remainingMs` (D17).
 - ✅ the next presence sweep (every `PRESENCE_SWEEP_MS`, while any player is active or any bound socket is open)
 - ✅ `expiresAt`, which closes all sockets and runs `ctx.storage.deleteAll()` (or `_touch`es if someone is still active)
 
@@ -801,11 +953,9 @@ Every accepted action except `_presence` pushes `expiresAt` to now + 2 h.
 **What being inactive does:**
 
 - **Turn rotation skips them.** When an inactive player's turn comes up, the next active player _on the same team_ goes instead, so the team doesn't lose its turn. If the team has nobody active, the team is skipped. ❓ See [§9](#9-open-questions).
-- **If the active player drops mid-turn:**
-  1. The timer **auto-pauses** as soon as their last socket closes or goes stale.
-  2. If they're back before going inactive, the GM resumes.
-  3. If they go inactive, the turn ends as if `endTurn` and goes to review. The GM proceeds: phrases already guessed count, and the rest return to the pile.
-  4. If it was a false alarm, the GM can still `restartPrevTurn`.
+- ✅ **If the active player drops mid-turn** (D31): once they're marked inactive (20 s without a sign of life), the turn ends and goes to review with `endedBy: "left"`. The GM proceeds: phrases already guessed count, and the rest stay in the pile. The GM can pause manually in the meantime, and `restartPrevTurn` covers a false alarm. The earlier sketch auto-paused on the first missed ping; that would need a new presence signal from the shell (D15), so it wasn't built.
+- ✅ **Up next drops:** the prepared player is replaced by their next connected teammate before the turn starts.
+
 - ✅ **No stuck roles.**
   - If the **game master** goes inactive, GM passes to the earliest-joined active player (D18). The host screen going away changes nothing; it can reopen `/host/<CODE>` in the same browser.
   - If a **team captain** goes inactive, the next active team member becomes captain.
@@ -818,22 +968,22 @@ Every accepted action except `_presence` pushes `expiresAt` to now + 2 h.
 3. **`nameKey(name)` matches an active player:** reject with `NAME_TAKEN`.
 4. **Otherwise**, create a new player:
    - in `lobby`, they join normally
-   - after **Everyone’s in**, they go to the **waiting room** (`waiting: true`) until the GM places them after the wheel, before writing
+   - after **Everyone’s in**, they go to the **waiting room** (`waiting: true`) until the GM places them on a team: after the wheel, during writing, or mid-game (D31)
    - `maxPlayers` is enforced
 
 `nameKey(name)` trims the name, collapses inner whitespace, applies Unicode NFC normalization, and lowercases it. The display name keeps the player's casing.
 
 ### 5.7 Play again
 
-`playAgain` (game master, `results` phase) changes state as follows (D9, D18):
+✅ `playAgain` (game master, `results` phase) changes state as follows (D9, D18, D31):
 
-| Kept                                                                                                           | Cleared                                                                                | Removed                                                                                |
-| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Lobby code, every open socket, active players, roles, config, teams (as the starting point for team selection) | Phrases, pile, scores, round, turn order and index, turn, `prevTurn`, acknowledgements | Inactive players. They can still rejoin by name, because the lobby phase accepts joins |
+| Kept                                                                     | Cleared                                                               | Removed                                                                 |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Lobby code, every open socket, active players, roles (GM, Cavan), config | Teams, draft, phrases, the whole `game` (pile, scores, rounds, turns) | Inactive players; they can rejoin by name like anyone else in the lobby |
 
-Waiting-room players become normal lobby players. `expiresAt` is refreshed and the phase becomes `lobby`. Because the state is pushed to every connection, every screen moves to the lobby at once.
+The phase becomes `lobby`, so the next game starts with **Everyone's in** and a fresh wheel. Because the state is pushed to every connection, every screen moves to the lobby at once.
 
-**UI:** the GM's phone shows **Play again**; other phones and the host screen show "Waiting for <GM> to play again…".
+**UI:** the GM's phone shows **Play again** (and "Restart the previous turn" for a disputed last turn); other phones say the GM can start another game.
 
 ### 5.8 Protocol
 
@@ -853,6 +1003,7 @@ Waiting-room players become normal lobby players. `expiresAt` is refreshed and t
 - `{ type: "state", view, now }`: the viewer's `viewFor` after every change. The host screen gets the public view, `viewFor(state, null)`.
 - `{ type: "error", code, message }`, sent only to the offending socket. The `message` is written to be shown to players.
 - `{ type: "bye", reason: "kicked" | "replaced" | "expired" }`, sent just before the server closes the socket on purpose. The client stops reconnecting.
+- `{ type: "emote", playerId, name, kind }`: a reaction, broadcast to every socket (D31).
 - `{ type: "reload" }`: protocol version mismatch ([§6.8](#68-deploys--version-skew)).
 
 **Error codes:** `BAD_MESSAGE`, `NOT_JOINED`, `FORBIDDEN`, `WRONG_PHASE`, `INVALID`, `NAME_TAKEN`, `LOBBY_FULL`, `LOBBY_NOT_FOUND`, `CODE_TAKEN`, `RATE_LIMITED`, `INTERNAL`.
@@ -929,7 +1080,7 @@ These checks live in `packages/game`, so the client can run them for instant fee
   - `remainingMs` is within bounds
   - `phase`-specific fields are present
 - **Persist before broadcast.** If `ctx.storage.put` fails, the in-memory state reverts and nothing is broadcast.
-- **Schema version.** If a stored blob's `schemaVersion` doesn't match the code, the lobby is reset rather than loaded half-understood. That's acceptable, because lobbies are ephemeral.
+- **Schema version.** If a stored blob's `schemaVersion` doesn't match the code, or it fails `checkInvariants`, the lobby is reset rather than loaded half-understood (D33). That's acceptable, because lobbies are ephemeral.
 - **Single-threaded, but async-aware.** Don't `await` external I/O between reading state and writing it back. Durable Object input gates protect storage awaits.
 
 ### 6.6 Resource limits
@@ -948,14 +1099,15 @@ Defined in [`constants.ts`](../packages/game/src/constants.ts) and [`config.ts`]
 | `teamCount`                                         | config 2–8                                |
 | `roundLengthSec`                                    | config 15–180                             |
 | Connections per lobby                               | 60 (players + TVs + duplicate tabs)       |
-| `addTime`                                           | ±60 s per action; remaining 0–10 min      |
-| Rate limit                                          | 10 msg/s, burst 20; emotes 2/s            |
+| `ADD_TIME_MAX_MS` / `TURN_MIN_MS` / `TURN_MAX_MS`   | ±60 s per action / 1 s / 10 min (D31)     |
+| `TURN_COUNTDOWN_MS`                                 | 3 000 (D31)                               |
+| Rate limit                                          | 10 msg/s, burst 20 (emotes included)      |
 | `HEARTBEAT_INTERVAL_MS`                             | 5 000                                     |
 | `LOBBY_RESPONSE_TIMEOUT_MS`                         | 8 000; client startup feedback only (D25) |
 | `INACTIVE_AFTER_MS`                                 | 20 000                                    |
 | `RECONNECT_MIN_DELAY_MS` / `RECONNECT_MAX_DELAY_MS` | 250 / 4 000 (×1.5 growth, D19)            |
 | `PRESENCE_SWEEP_MS`                                 | 5 000                                     |
-| Idle expiry / after results                         | 2 h / 15 min                              |
+| Idle expiry                                         | 2 h (no separate results expiry, D31)     |
 
 ### 6.7 Output safety
 
@@ -1024,7 +1176,7 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 | fast-check                           | 4.10.2        |
 | Node / pnpm                          | 24.18 / 11.24 |
 
-**Protocol/storage:** `PROTOCOL_VERSION = 5`, `SCHEMA_VERSION = 5` (D27–D28). Deploy party before web; persisted v4 lobbies reset.
+**Protocol/storage:** `PROTOCOL_VERSION = 6`, `SCHEMA_VERSION = 7` (D30–D32). Deploy party before web; persisted v6 lobbies reset.
 
 **Connection feedback:** `LOBBY_RESPONSE_TIMEOUT_MS = 8_000`. This is a host/player startup UI grace period, not a socket close or server timeout. Automatic retries continue after the error is shown; “Try again” starts a fresh grace period (D25).
 
@@ -1052,23 +1204,26 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 
 **Commands** (run all of them before finishing any change):
 
-| Command                        | What it checks                                                                                                       |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `pnpm lint`                    | Biome over the whole repo                                                                                            |
-| `pnpm typecheck`               | `tsc --noEmit` in every package; web runs `next typegen` first so route types like `PageProps<"/play/[code]">` exist |
-| `pnpm test`                    | Vitest in `packages/game` (unit + property tests)                                                                    |
-| `pnpm --filter @tmn/web build` | Production build, including Next's type check                                                                        |
-| `pnpm --filter @tmn/party e2e` | 56 WebSocket checks against a running dev worker (start `pnpm dev` first). Takes ~40 s                               |
+| Command                             | What it checks                                                                                                                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm lint`                         | Biome over the whole repo                                                                                                                                                                 |
+| `pnpm typecheck`                    | `tsc --noEmit` in every package; web runs `next typegen` first so route types like `PageProps<"/play/[code]">` exist                                                                      |
+| `pnpm test`                         | Vitest in `packages/game` (unit + property tests)                                                                                                                                         |
+| `pnpm --filter @tmn/web build`      | Production build, including Next's type check                                                                                                                                             |
+| `pnpm --filter @tmn/party e2e`      | 61 WebSocket checks against a running dev worker (start `pnpm dev` first). Takes ~40 s                                                                                                    |
+| `pnpm --filter @tmn/party e2e:game` | 27 checks playing a whole game over real sockets: wheel, Cavan vetting, privacy, pile-out carry-over, the server clock ending a turn, pause/add time, emotes, results, Play again. ~1 min |
 
 **Unit and property tests** (`packages/game`):
 
 - ✅ **Per action:** succeeds for the allowed role and phase, and is rejected with the right code otherwise.
-- ✅ **Views:** `viewFor` never leaks tokens, for any viewer. 🚧 Hidden phrases, once phrases exist.
+- ✅ **Views:** `viewFor` never leaks tokens, for any viewer; mid-turn, no view but the active player's (and the revealing GM's) contains a phrase still in play; Cavan's pending phrases reach only the GM.
 - ✅ **Presence, rejoin and role handoff:** all four join paths, screen create and reconnect, GM handoff, and expiry, using an injected clock.
 - ✅ **Property test:** random valid and garbage sequences never throw, never mutate their input, never break invariants, and every action type has really been exercised.
 - ✅ Automatic wheel draft: timed server progression, frozen roster, balance, first-drawn captain order, disconnected/kicked winners, late joins, captain naming, GM corrections and writing gates (D28).
 - ✅ Writing: phase/author permissions, quota, word/length/duplicate validation, author-only text views, deletion, kick cleanup and reconnect persistence.
-- 🚧 Turn rules (D13, D17), results and play again.
+- ✅ **Cavan** (`cavan.test.ts`): permissions, GM/Cavan exclusivity, pending/approve/reject, quota after rejection, start gate, re-vetting on designation.
+- ✅ **Game loop** (`game.test.ts`): start conditions, round intros, A1/B1/A2/B2 rotation (and uneven teams), countdown, next/back, review bounds, timer and late-next timeouts, pause/add time/resume, restart previous turn, pile-out carry-over into the next round and within a round, results and ties, play again, dropped/kicked active players, late joiners, emotes.
+- ✅ **Game property test** (`game.property.test.ts`): random turn buttons, GM controls, clock jumps, presence flips, joins, kicks and garbage from a started game never throw, never mutate, never break an invariant, and really exercise next/back/proceed/timers.
 
 **Manual end-to-end check** ✅:
 
@@ -1079,7 +1234,7 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 5. From the GM's ⋯ menu, rename, change a setting, then kick. The kicked player sees "The game master removed you from the lobby".
 6. Close the GM's tab and wait about 20 s: they show as offline, and GM passes to the next player. Rejoin with the same name: they're back as the same player.
 
-The original lobby flow was verified with headless Firefox. The current six-player browser run uses `/dev` and real independent host/phone frames, plus a second host mirror. It verifies automatic wheel completion, GM reload during a spin, balanced sides, first-drawn captains, per-captain names, manual GM moves, writing gates, all phrase quotas, private views and 20-second disconnect/reconnect recovery. No browser runtime errors were observed. The native WebSocket e2e script passes 56 checks. The complete manual checklist is [TESTING.md](./TESTING.md).
+The original lobby flow was verified with headless Firefox. The current six-player browser run uses `/dev` and real independent host/phone frames, plus a second host mirror. It verifies automatic wheel completion, GM reload during a spin, balanced sides, first-drawn captains, per-captain names, manual GM moves, writing gates, all phrase quotas, private views and 20-second disconnect/reconnect recovery. No browser runtime errors were observed. The native WebSocket e2e script passes 61 checks. The complete manual checklist is [TESTING.md](./TESTING.md).
 
 **Testing on phones on the same Wi-Fi:**
 
@@ -1095,21 +1250,22 @@ If your LAN uses `172.16–31.x` addresses, add them to `allowedDevOrigins` in `
 
 The design makes an assumption for each of these, so work isn't blocked. Confirm or change them, and record the answer here and in the decision log.
 
-| #   | Question                                                                 | Current assumption / answer                                                                                                              |
-| --- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1  | When an inactive player's turn comes up, does their **team** still play? | Yes: the next active teammate goes; the team is skipped only if nobody on it is active                                                   |
-| Q2  | Does the original game master get GM back when they rejoin?              | No. GM stays with whoever it passed to; the GM can hand it back with "Make game master" ✅ built this way                                |
-| Q3  | How many rounds, and how do they work?                                   | **Answered 2026-10-26:** 3 rounds with the same mechanics and the same full pile each round (§1.2)                                       |
-| Q4  | When the pile empties mid-turn, what happens to the time left?           | **Answered 2026-10-26:** the timer stops; the same player keeps going into the next round with the time that was left (D17)              |
-| Q5  | Are kicked players banned from rejoining?                                | No; after team confirmation they land in the waiting room, so the GM controls it                                                         |
-| Q6  | How are the backdoors triggered?                                         | Undecided; must be server-side and role-gated                                                                                            |
-| Q7  | Does the TV screen join as a player or a spectator?                      | **Answered 2026-10-26:** the TV _is_ the host: a non-player screen that runs the game (D18)                                              |
-| Q8  | Who starts round 2 and round 3?                                          | **Answered 2026-10-26:** rotation continues; in practice the player who emptied the pile continues first (D17)                           |
-| Q9  | Do rounds have different clue rules?                                     | **Answered 2026-10-26:** R1 describe without saying any of the words, R2 charades (no talking), R3 one word (§1.2)                       |
-| Q10 | What does a tie look like at the end?                                    | **Answered 2026-10-26:** a tie is a tie: no tiebreaker, the tied teams are shown as tied                                                 |
-| Q11 | What if the pile runs out with almost no time left (say under 1 s)?      | Carry over whatever is left, however small; the GM can `addTime` while paused if it feels unfair                                         |
-| Q12 | Can players choose their own teams?                                      | **Answered 2026-10-27:** no self-selection. The wheel assigns everyone; only the GM can correct membership (D28).                        |
-| Q13 | How are late arrivals handled while teams are being picked?              | **Answered 2026-10-27:** roster closes at Everyone’s in. New arrivals wait; the GM can place them after the wheel, before writing (D28). |
+| #   | Question                                                                      | Current assumption / answer                                                                                                              |
+| --- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | When an inactive player's turn comes up, does their **team** still play?      | Yes: the next active teammate goes; the team is skipped only if nobody on it is active                                                   |
+| Q2  | Does the original game master get GM back when they rejoin?                   | No. GM stays with whoever it passed to; the GM can hand it back with "Make game master" ✅ built this way                                |
+| Q3  | How many rounds, and how do they work?                                        | **Answered 2026-10-26:** 3 rounds with the same mechanics and the same full pile each round (§1.2)                                       |
+| Q4  | When the pile empties mid-turn, what happens to the time left?                | **Answered 2026-10-26:** the timer stops; the same player keeps going into the next round with the time that was left (D17)              |
+| Q5  | Are kicked players banned from rejoining?                                     | No; after team confirmation they land in the waiting room, so the GM controls it                                                         |
+| Q6  | How are the backdoors triggered?                                              | Undecided; must be server-side and role-gated. Not built (§1.4)                                                                          |
+| Q7  | Does the TV screen join as a player or a spectator?                           | **Answered 2026-10-26:** the TV _is_ the host: a non-player screen that runs the game (D18)                                              |
+| Q8  | Who starts round 2 and round 3?                                               | **Answered 2026-10-26:** rotation continues; in practice the player who emptied the pile continues first (D17)                           |
+| Q9  | Do rounds have different clue rules?                                          | **Answered 2026-10-26:** R1 describe without saying any of the words, R2 charades (no talking), R3 one word (§1.2)                       |
+| Q10 | What does a tie look like at the end?                                         | **Answered 2026-10-26:** a tie is a tie: no tiebreaker, the tied teams are shown as tied                                                 |
+| Q11 | What if the pile runs out with almost no time left (say under 1 s)?           | Carry over whatever is left, however small; the GM can `addTime` before the turn starts ✅ built this way                                |
+| Q12 | Can players choose their own teams?                                           | **Answered 2026-10-27:** no self-selection. The wheel assigns everyone; only the GM can correct membership (D28).                        |
+| Q13 | How are late arrivals handled while teams are being picked?                   | **Answered 2026-10-27:** roster closes at Everyone’s in. New arrivals wait; the GM can place them after the wheel, before writing (D28). |
+| Q14 | Should the timer auto-pause the instant the active player's phone goes quiet? | Not built: the turn ends when they're marked inactive (20 s); the GM can pause manually (D31)                                            |
 
 ## Appendix: decision template
 

@@ -3,6 +3,7 @@
 import {
   type ByeReason,
   type ClientMessage,
+  type EmoteKind,
   HEARTBEAT_INTERVAL_MS,
   LOBBY_RESPONSE_TIMEOUT_MS,
   type LobbyView,
@@ -44,6 +45,21 @@ export type LobbyAction = Exclude<
 /** A phone joins as a player; the shared screen hosts (D18). */
 export type LobbyRole = "player" | "screen";
 
+/**
+ * A reaction shown briefly on screens (D31). `id` is local, for React keys and
+ * expiry; `seed` picks where and how it floats.
+ */
+export interface EmoteBurst {
+  id: number;
+  seed: number;
+  playerId: string;
+  name: string;
+  kind: EmoteKind;
+}
+
+/** How long an emote stays on screen. */
+const EMOTE_SHOW_MS = 3_500;
+
 /** Missed pongs before we assume the socket is dead and reconnect. */
 const PONG_GRACE_MS = HEARTBEAT_INTERVAL_MS * 2.5;
 
@@ -62,6 +78,8 @@ export function useLobby(
   const [startupError, setStartupError] = useState<string | null>(null);
   const [timedOutAttempt, setTimedOutAttempt] = useState<number | null>(null);
   const [connectionAttempt, setConnectionAttempt] = useState(0);
+  const [emotes, setEmotes] = useState<EmoteBurst[]>([]);
+  const emoteId = useRef(0);
   const lastPong = useRef(0);
   // Read inside socket handlers, so a ref rather than state avoids stale closures.
   const joined = useRef(false);
@@ -152,6 +170,20 @@ export function useLobby(
         setView(msg.view);
         setClockOffset(msg.now - Date.now());
         return;
+      case "emote": {
+        const burst = {
+          ...msg,
+          id: ++emoteId.current,
+          seed: Math.floor(Math.random() * 2 ** 32),
+        };
+        // Cap what's on screen so a flood can't bog down the TV.
+        setEmotes((list) => [...list.slice(-11), burst]);
+        setTimeout(
+          () => setEmotes((list) => list.filter((e) => e.id !== burst.id)),
+          EMOTE_SHOW_MS,
+        );
+        return;
+      }
       case "bye":
         setGoneReason(msg.reason);
         joined.current = false;
@@ -278,6 +310,7 @@ export function useLobby(
     status,
     view,
     clockOffset,
+    emotes,
     connected,
     nameError,
     notice,

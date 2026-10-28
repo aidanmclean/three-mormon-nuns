@@ -4,6 +4,7 @@
 export * from "./code";
 export * from "./config";
 export * from "./constants";
+export * from "./game";
 export * from "./invariants";
 export * from "./names";
 export * from "./protocol";

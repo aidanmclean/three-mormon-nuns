@@ -45,9 +45,10 @@ export function phraseAction(
   if (text.split(/\s+/u).length > state.config.maxWordsPerPhrase)
     return fail(`Use at most ${state.config.maxWordsPerPhrase} words.`);
   const existing = Object.values(state.phrases);
+  // Rejected phrases don't count toward the quota; the author writes another (D30).
   if (
-    existing.filter((p) => p.authorId === actor.id).length >=
-    state.config.phrasesPerPlayer
+    existing.filter((p) => p.authorId === actor.id && p.status !== "rejected")
+      .length >= state.config.phrasesPerPlayer
   )
     return fail("You have already written all your phrases.");
   if (existing.some((p) => nameKey(p.text) === nameKey(text)))
@@ -57,7 +58,94 @@ export function phraseAction(
     ok: true,
     state: {
       ...state,
-      phrases: { ...state.phrases, [id]: { id, authorId: actor.id, text } },
+      phrases: {
+        ...state.phrases,
+        [id]: {
+          id,
+          authorId: actor.id,
+          text,
+          // Every phrase Cavan writes waits for the GM (D30).
+          status: actor.id === state.roles.cavanId ? "pending" : "approved",
+        },
+      },
+    },
+    effects: [],
+  };
+}
+
+/** Phases in which the GM may still choose who Cavan is (D30). */
+const CAVAN_PHASES = ["lobby", "teams", "writing"];
+
+/** GM-only Cavan controls (D30). The caller has already checked the actor is GM. */
+export function moderationAction(state: LobbyState, action: Action): Result {
+  if (action.type === "setCavan") {
+    if (!CAVAN_PHASES.includes(state.phase))
+      return {
+        ok: false,
+        code: "WRONG_PHASE",
+        message: "Cavan can't change once the game starts.",
+      };
+    const target =
+      action.playerId === null ? null : state.players[action.playerId];
+    if (action.playerId !== null && !target)
+      return {
+        ok: false,
+        code: "INVALID",
+        message: "That player isn't in the lobby.",
+      };
+    if (target && target.id === state.roles.gamemasterId)
+      return {
+        ok: false,
+        code: "INVALID",
+        message: "The game master vets Cavan, so they can't be Cavan.",
+      };
+    const before = state.roles.cavanId;
+    const after = target?.id ?? null;
+    // The new Cavan's phrases go back for vetting; the old Cavan's pending ones are cleared.
+    const phrases = Object.fromEntries(
+      Object.entries(state.phrases).map(([id, p]) => [
+        id,
+        p.authorId === after && p.status === "approved"
+          ? { ...p, status: "pending" as const }
+          : p.authorId === before &&
+              p.authorId !== after &&
+              p.status === "pending"
+            ? { ...p, status: "approved" as const }
+            : p,
+      ]),
+    );
+    return {
+      ok: true,
+      state: { ...state, phrases, roles: { ...state.roles, cavanId: after } },
+      effects: [],
+    };
+  }
+  if (action.type !== "approvePhrase" && action.type !== "rejectPhrase")
+    return { ok: false, code: "INVALID", message: "Choose a phrase action." };
+  if (state.phase !== "writing")
+    return {
+      ok: false,
+      code: "WRONG_PHASE",
+      message: "Phrases can only be vetted during writing.",
+    };
+  const phrase = state.phrases[action.phraseId];
+  if (phrase?.status !== "pending")
+    return {
+      ok: false,
+      code: "INVALID",
+      message: "That phrase isn't waiting for approval.",
+    };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      phrases: {
+        ...state.phrases,
+        [phrase.id]: {
+          ...phrase,
+          status: action.type === "approvePhrase" ? "approved" : "rejected",
+        },
+      },
     },
     effects: [],
   };

@@ -8,7 +8,8 @@
     "deploy": "wrangler deploy",
     "types": "wrangler types --include-runtime=false",
     "typecheck": "tsc --noEmit",
-    "e2e": "node scripts/e2e-lobby.mjs"
+    "e2e": "node scripts/e2e-lobby.mjs",
+    "e2e:game": "node scripts/e2e-game.mjs"
   },
   "dependencies": {
     "@tmn/game": "workspace:*",

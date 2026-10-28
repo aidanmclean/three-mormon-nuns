@@ -8,10 +8,10 @@ export const PARTY = "lobby";
 export const CODE_LENGTH = 4;
 
 /** Bump on any breaking change to client/server messages or views (§6.8). */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /** Bump whenever the persisted LobbyState shape changes (§6.5). */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 7;
 
 /** Fixed by the game rules (§1.2). */
 export const ROUNDS = 3;
@@ -37,6 +37,21 @@ export const NAME_MAX_LEN = 20;
 export const PHRASE_MAX_LEN = 80;
 export const WHEEL_SPIN_MS = 2_600;
 export const WHEEL_REVEAL_MS = 900;
+/** 3-2-1 on the active player's phone before the clock starts (D31). */
+export const TURN_COUNTDOWN_MS = 3_000;
+/** Largest single "add/remove time" step, and bounds for any turn's time (D31). */
+export const ADD_TIME_MAX_MS = 60_000;
+export const TURN_MIN_MS = 1_000;
+export const TURN_MAX_MS = 10 * 60_000;
+/** Reactions anyone can send; shown on the host screen (D31). */
+export const EMOTES = [
+  "laugh",
+  "clap",
+  "fire",
+  "thumbsUp",
+  "thumbsDown",
+  "tomato",
+] as const;
 export const MAX_PLAYERS_CAP = 40;
 /** Players + TV screens + duplicate tabs. */
 export const MAX_CONNECTIONS = 60;

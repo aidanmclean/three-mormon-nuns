@@ -38,7 +38,7 @@ Both services are required to create or join a lobby. If the web app is already 
 
 On the computer you'll use as the shared screen, click **Host a new game**, choose the rules, then **Create lobby**. The shared screen shows a 4-letter code. Join that code from phones, or from private windows (a normal second tab shares your session). The first player to join is the **game master** and controls the game from their phone.
 
-The game master presses **Everyone’s in** to close the roster. The server’s wheel assigns players one at a time; first-drawn players become team captains and save their team names. The GM can correct memberships, then start writing. Players submit private phrases under the room’s quota and word limits; timed guessing rounds are the next development slice.
+The game master presses **Everyone’s in** to close the roster. The server’s wheel assigns players one at a time; first-drawn players become team captains and save their team names. The GM can correct memberships, then start writing. Players submit private phrases under the room’s quota and word limits; if the GM has named a Cavan, the GM approves or rejects each of Cavan’s phrases. The GM then starts the game: three timed rounds (describe it, charades, one word) with teams taking turns, then the results and **Play again**.
 
 The interface uses a light-mode retro comic style. Illustration sources are recorded in [ASSETS.md](docs/ASSETS.md).
 
@@ -48,17 +48,18 @@ No Cloudflare account is needed for local development; Wrangler runs Durable Obj
 
 ## Scripts
 
-| Command                           | Does                                                             |
-| --------------------------------- | ---------------------------------------------------------------- |
-| `pnpm dev`                        | Run web + party dev servers in parallel                          |
-| `pnpm build`                      | Production build of the web app                                  |
-| `pnpm test`                       | Unit tests (Vitest)                                              |
-| `pnpm typecheck`                  | `tsc --noEmit` in every package                                  |
-| `pnpm lint`                       | Biome lint + format check                                        |
-| `pnpm format`                     | Biome auto-fix + format                                          |
-| `pnpm --filter @tmn/party types`  | Regenerate the Worker `Env` types after editing `wrangler.jsonc` |
-| `pnpm --filter @tmn/party deploy` | Deploy the lobby Worker to Cloudflare                            |
-| `pnpm --filter @tmn/party e2e`    | WebSocket end-to-end checks against the running dev worker       |
+| Command                             | Does                                                              |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `pnpm dev`                          | Run web + party dev servers in parallel                           |
+| `pnpm build`                        | Production build of the web app                                   |
+| `pnpm test`                         | Unit tests (Vitest)                                               |
+| `pnpm typecheck`                    | `tsc --noEmit` in every package                                   |
+| `pnpm lint`                         | Biome lint + format check                                         |
+| `pnpm format`                       | Biome auto-fix + format                                           |
+| `pnpm --filter @tmn/party types`    | Regenerate the Worker `Env` types after editing `wrangler.jsonc`  |
+| `pnpm --filter @tmn/party deploy`   | Deploy the lobby Worker to Cloudflare                             |
+| `pnpm --filter @tmn/party e2e`      | WebSocket end-to-end checks against the running dev worker        |
+| `pnpm --filter @tmn/party e2e:game` | Plays a whole game over WebSockets against the running dev worker |
 
 ## Layout
 

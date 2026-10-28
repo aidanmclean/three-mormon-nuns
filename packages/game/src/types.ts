@@ -21,13 +21,75 @@ export type Phase =
   | "turnReview"
   | "results";
 
+/** Cavan's phrases start `pending` until the GM vets them (D30). */
+export type PhraseStatus = "approved" | "pending" | "rejected";
+
 export interface Phrase {
   id: string;
   authorId: PlayerId;
   text: string;
+  status: PhraseStatus;
 }
 
+/** One player's turn (D13, D17, D31). Present from `turnReady` through `turnReview`. */
+export interface Turn {
+  playerId: PlayerId;
+  teamId: TeamId;
+  /** Phrase ids in the order shown this turn. */
+  seen: string[];
+  /** seen[0…cursor) currently count as guessed; the live score is `cursor`. */
+  cursor: number;
+  /** Furthest the cursor got while the timer ran; review can't go past it. */
+  maxCursor: number;
+  /** Time left while the clock isn't running (ready, paused, review). */
+  remainingMs: number;
+  /** Deadline while running; null when ready, paused or in review. */
+  endsAt: number | null;
+  /** The active phone shows 3-2-1 until this; the clock starts after it. */
+  countdownEndsAt: number | null;
+  paused: boolean;
+  /** Why the turn stopped; null while it's ready or live. */
+  endedBy: "timer" | "pile" | "gm" | "left" | null;
+  /** Same player continuing with leftover time after a pile-out (D17). */
+  carried: boolean;
+  /** The GM is peeking at the current phrase. */
+  revealed: boolean;
+}
+
+/** What `restartPrevTurn` restores: the game just before the last Proceed. */
+export interface GameSnapshot {
+  round: number;
+  pile: string[];
+  scores: Record<TeamId, number>;
+  teamCursor: number;
+  memberCursor: Record<TeamId, number>;
+  playerId: PlayerId;
+  teamId: TeamId;
+  carried: boolean;
+}
+
+/** Rounds and turns (D31). Null before the GM starts the game. */
+export interface Game {
+  /** 1…ROUNDS. */
+  round: number;
+  /** Approved phrase ids not yet guessed this round. */
+  pile: string[];
+  scores: Record<TeamId, number>;
+  /** Index into teamOrder of the team that plays next. */
+  teamCursor: number;
+  /** Per team, index into memberIds of the player who plays next. */
+  memberCursor: Record<TeamId, number>;
+  /** Who has tapped "Got it" on the current round intro. */
+  acknowledged: PlayerId[];
+  turn: Turn | null;
+  previous: GameSnapshot | null;
+}
+
+/** How teams are made: the server wheel, or the GM placing everyone (D32). */
+export type TeamMode = "wheel" | "manual";
+
 export interface TeamDraft {
+  mode: TeamMode;
   remainingIds: PlayerId[];
   nextTeamIndex: number;
   stage: "spinning" | "revealing" | "complete";
@@ -63,6 +125,7 @@ export interface LobbyState {
   teamOrder: TeamId[];
   draft: TeamDraft | null;
   phrases: Record<string, Phrase>;
+  game: Game | null;
   /** Public result of the latest server-owned random pick. */
   lastDraw: {
     sequence: number;
@@ -77,6 +140,8 @@ export interface LobbyState {
   roles: {
     /** The player in control (D18). Null only until the first player joins. */
     gamemasterId: PlayerId | null;
+    /** The moderated player: the GM vets every phrase they write (D30). */
+    cavanId: PlayerId | null;
   };
   createdAt: number;
   expiresAt: number;

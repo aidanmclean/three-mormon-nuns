@@ -58,10 +58,14 @@ export class Lobby extends Server<Env> {
     );
     this.wokeAt = Date.now();
     const stored = await this.ctx.storage.get<LobbyState>("state");
-    if (stored?.schemaVersion === SCHEMA_VERSION) {
+    const problems =
+      stored?.schemaVersion === SCHEMA_VERSION ? checkInvariants(stored) : null;
+    if (stored && problems?.length === 0) {
       this.lobby = stored;
     } else if (stored) {
-      // Written by an older build. Lobbies are ephemeral, so start over (§6.5).
+      // Written by an older build, or broken: every transition from it would
+      // be rejected. Lobbies are ephemeral, so start over (§6.5, D32).
+      if (problems) console.warn("discarding invalid stored lobby", problems);
       await this.ctx.storage.deleteAll();
     }
   }
@@ -175,6 +179,7 @@ export class Lobby extends Server<Env> {
     }
     await this.sweepPresence(now);
     await this.transition({ type: "_draftTick" }, null);
+    await this.transition({ type: "_turnTick" }, null);
     await this.scheduleAlarm();
   }
 
@@ -257,8 +262,21 @@ export class Lobby extends Server<Env> {
         // Read-only host mirrors may coexist. Player sockets still use newest-wins.
       }
       if (effect.type === "kicked") this.closePlayer(effect.playerId, "kicked");
+      if (effect.type === "emote") {
+        const name = this.lobby?.players[effect.playerId]?.name ?? "";
+        for (const conn of this.getConnections<SocketState>())
+          if (conn.state?.playerId || conn.state?.screen)
+            this.send(conn, {
+              type: "emote",
+              playerId: effect.playerId,
+              name,
+              kind: effect.kind,
+            });
+      }
     }
 
+    // A pure broadcast (an emote) needs no new views.
+    if (!changed && result.effects.every((e) => e.type === "emote")) return;
     await this.scheduleAlarm();
     this.pushViews();
   }
@@ -345,6 +363,10 @@ export class Lobby extends Server<Env> {
         this.lobby.expiresAt,
         sweep,
         this.lobby.draft?.nextAt ?? Number.POSITIVE_INFINITY,
+        // The running turn's deadline (D31); null while paused or not live.
+        this.lobby.phase === "turnActive"
+          ? (this.lobby.game?.turn?.endsAt ?? Number.POSITIVE_INFINITY)
+          : Number.POSITIVE_INFINITY,
       ),
     );
   }

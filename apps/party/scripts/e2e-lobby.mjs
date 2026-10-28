@@ -4,7 +4,7 @@
 // Takes ~40 s because it waits for a silent client to be marked inactive.
 
 const HOST = process.env.PARTY_HOST ?? "localhost:8787";
-const V = 5; // keep in sync with PROTOCOL_VERSION in packages/game
+const V = 6; // keep in sync with PROTOCOL_VERSION in packages/game
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const code = Array.from(
   { length: 4 },
@@ -311,8 +311,8 @@ check(
 );
 hazelPhone2.send({ type: "setCavan", playerId: hazelJoined.playerId });
 check(
-  await hazelPhone2.waitFor(isError("BAD_MESSAGE")),
-  "removed special role is rejected at the boundary",
+  await hazelPhone2.waitFor(isError("FORBIDDEN")),
+  "only the GM can choose Cavan",
 );
 alex2.send({ type: "startTeams" });
 check(
@@ -479,6 +479,67 @@ check(
   await screen2.waitFor(stateWhere((v) => v.players.length === 1)),
   "screen sees player removed",
 );
+
+// Manual teams (D32): no wheel; the GM places everyone.
+const manualRoom = Array.from(
+  { length: 4 },
+  () => LETTERS[Math.floor(Math.random() * 26)],
+).join("");
+const tv = await new Client("tv", { room: manualRoom }).open();
+tv.send({ type: "create" });
+check(
+  await tv.waitFor((m) => m.type === "joined" && m.as === "screen"),
+  "second room created with default settings",
+);
+const people = {};
+for (const name of ["Mo", "Nell", "Ozzie"]) {
+  const c = await new Client(name, { room: manualRoom }).open();
+  c.send({ type: "join", name });
+  people[name] = (await c.waitFor((m) => m.type === "joined")).playerId;
+  people[`${name}Socket`] = c;
+}
+const mo = people.MoSocket;
+mo.send({ type: "startTeams", mode: "shuffle" });
+check(await mo.waitFor(isError("BAD_MESSAGE")), "unknown team mode rejected");
+mo.send({ type: "startTeams", mode: "manual" });
+check(
+  await tv.waitFor(
+    stateWhere(
+      (v) =>
+        v.phase === "teams" &&
+        v.draft?.mode === "manual" &&
+        v.draft.stage === "complete" &&
+        v.lastDraw === null &&
+        v.players.every((p) => !p.teamId),
+    ),
+  ),
+  "manual mode: teams open at once with nobody placed and no wheel",
+);
+people.NellSocket.send({
+  type: "addToTeam",
+  teamId: "team-1",
+  playerId: people.Nell,
+});
+check(
+  await people.NellSocket.waitFor(isError("FORBIDDEN")),
+  "manual mode: only the GM places players",
+);
+mo.send({ type: "addToTeam", teamId: "team-1", playerId: people.Nell });
+mo.send({ type: "addToTeam", teamId: "team-1", playerId: people.Mo });
+mo.send({ type: "addToTeam", teamId: "team-2", playerId: people.Ozzie });
+check(
+  await tv.waitFor(
+    stateWhere(
+      (v) =>
+        v.teams[0]?.captainId === people.Nell &&
+        v.teams[1]?.captainId === people.Ozzie &&
+        v.players.every((p) => p.teamId),
+    ),
+  ),
+  "manual mode: the first player placed on each team is captain",
+);
+for (const name of ["Mo", "Nell", "Ozzie"]) people[`${name}Socket`].close();
+tv.close();
 
 alex2.close();
 screen.close();

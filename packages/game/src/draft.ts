@@ -1,7 +1,7 @@
 import { WHEEL_REVEAL_MS, WHEEL_SPIN_MS } from "./constants";
 import { nameKey, validateName } from "./names";
 import type { Action, Ctx, Result } from "./reducer";
-import type { LobbyState, Player, Team } from "./types";
+import type { LobbyState, Player, Team, TeamMode } from "./types";
 
 const done = (state: LobbyState): Result => ({ ok: true, state, effects: [] });
 const invalid = (message: string): Result => ({
@@ -10,7 +10,11 @@ const invalid = (message: string): Result => ({
   message,
 });
 
-export function startDraft(state: LobbyState, ctx: Ctx): Result {
+export function startDraft(
+  state: LobbyState,
+  ctx: Ctx,
+  mode: TeamMode,
+): Result {
   if (state.phase !== "lobby")
     return {
       ok: false,
@@ -46,15 +50,27 @@ export function startDraft(state: LobbyState, ctx: Ctx): Result {
       { ...p, waiting: p.status !== "active" },
     ]),
   );
+  const base = { ...state, phase: "teams" as const, players, teams, teamOrder };
+  // Manual: no wheel. The draft is complete at once, so the usual GM team
+  // edits apply and the first player placed on a team is its captain (D32).
+  if (mode === "manual")
+    return done({
+      ...base,
+      lastDraw: null,
+      draft: {
+        mode,
+        remainingIds: [],
+        nextTeamIndex: 0,
+        stage: "complete",
+        nextAt: null,
+      },
+    });
   return done(
     nextSpin(
       {
-        ...state,
-        phase: "teams",
-        players,
-        teams,
-        teamOrder,
+        ...base,
         draft: {
+          mode,
           remainingIds,
           nextTeamIndex: 0,
           stage: "revealing",
@@ -170,12 +186,7 @@ export function changeTeam(
   action: Action,
   actor: Player,
 ): Result {
-  if (state.phase !== "teams")
-    return {
-      ok: false,
-      code: "WRONG_PHASE",
-      message: "Teams can only change during team selection.",
-    };
+  if (state.phase !== "teams") return placeLateJoiner(state, action, actor);
   if (!("teamId" in action)) return invalid("Choose a team.");
   const team = state.teams[action.teamId];
   if (!team) return invalid("That team does not exist.");
@@ -223,6 +234,49 @@ export function changeTeam(
       players: { ...state.players, [player.id]: { ...player, teamId: null } },
     });
   }
+  if (player.status !== "active") return invalid("Choose a connected player.");
+  return done({
+    ...state,
+    players: {
+      ...state.players,
+      [player.id]: { ...player, teamId: team.id, waiting: false },
+    },
+  });
+}
+
+/**
+ * After team selection, the GM can still put someone from the waiting room
+ * onto a team, during writing or mid-game (D31). Nobody else can be moved.
+ */
+function placeLateJoiner(
+  state: LobbyState,
+  action: Action,
+  actor: Player,
+): Result {
+  const open = [
+    "writing",
+    "roundIntro",
+    "turnReady",
+    "turnActive",
+    "turnReview",
+  ].includes(state.phase);
+  if (!open || action.type !== "addToTeam")
+    return {
+      ok: false,
+      code: "WRONG_PHASE",
+      message: "Teams can only change during team selection.",
+    };
+  if (state.roles.gamemasterId !== actor.id)
+    return {
+      ok: false,
+      code: "FORBIDDEN",
+      message: "Only the game master can place players.",
+    };
+  const team = state.teams[action.teamId];
+  const player = state.players[action.playerId];
+  if (!team) return invalid("That team does not exist.");
+  if (!player || !(player.waiting || !player.teamId))
+    return invalid("Only players in the waiting room can be placed now.");
   if (player.status !== "active") return invalid("Choose a connected player.");
   return done({
     ...state,

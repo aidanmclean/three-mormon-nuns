@@ -2,6 +2,7 @@
 
 import type { LobbyView, PlayerView, Team } from "@tmn/game";
 import type { CSSProperties, ReactNode } from "react";
+import { Logo } from "@/app/brand";
 import { Fit } from "@/app/fit";
 import { EmoteLayer } from "@/app/game-bits";
 import { GameBoard } from "@/app/game-board";
@@ -68,14 +69,7 @@ function TvHeader({
   return (
     <header className="tv-header">
       <div className="tv-brand">
-        <span className="tv-brand-mark">
-          3<Icon name="spark" className="tv-brand-spark" />
-        </span>
-        <span className="tv-brand-name">
-          MORMON
-          <br />
-          NUNS
-        </span>
+        <Logo />
       </div>
       <p className="tv-phase">{phaseLabel(view)}</p>
       {view.phase !== "lobby" && (

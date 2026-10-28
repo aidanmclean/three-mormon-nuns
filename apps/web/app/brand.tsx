@@ -1,58 +1,61 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Icon } from "./icons";
 
 /** Published cartoon asset; source and public-domain notice: docs/ASSETS.md. */
-export function NunIllustration({ small = false }: { small?: boolean }) {
+export function NunIllustration() {
   return (
     <Image
       src="/art/nun-having-fun.png"
       alt=""
       width={580}
       height={580}
-      preload={!small}
-      sizes={small ? "260px" : "(max-width: 760px) 320px, 600px"}
-      className={`nun-illustration ${small ? "nun-illustration-small" : ""}`}
+      preload
+      sizes="(max-width: 760px) 320px, 600px"
+      className="nun-illustration"
     />
   );
 }
 
-export function Masthead({ label = "PARTY GAME" }: { label?: string }) {
+/**
+ * The one logo, everywhere (D44): a big yellow 3, "MORMON" in blue, "NUNS" in
+ * red and a yellow spark. It's drawn in `em`, so the page sets its size.
+ */
+export function Logo({ decorative = false }: { decorative?: boolean }) {
   return (
-    <header className="masthead">
-      <Link href="/" className="brand-lockup" aria-label="3 Mormon Nuns home">
-        <span className="brand-mark">
-          3<Icon name="spark" className="brand-spark" />
-        </span>
-        <span>
-          MORMON
-          <br />
+    <span
+      className="logo"
+      {...(decorative
+        ? { "aria-hidden": true }
+        : { role: "img", "aria-label": "3 Mormon Nuns" })}
+    >
+      <span className="logo-three" aria-hidden>
+        3
+      </span>
+      <span className="logo-words" aria-hidden>
+        <span className="logo-mormon">MORMON</span>
+        <span className="logo-nuns">
           NUNS
+          <Icon name="spark" className="logo-spark" />
         </span>
-      </Link>
-      <span className="eyebrow masthead-label">{label}</span>
-    </header>
+      </span>
+    </span>
   );
 }
 
-export function Steps({
-  current,
-}: {
-  current: "setup" | "lobby" | "teams" | "writing" | "play";
-}) {
-  const steps = ["setup", "lobby", "teams", "writing", "play"] as const;
+/** The site's top bar: the logo home, and How to play (or `children`). */
+export function Masthead({ children }: { children?: ReactNode }) {
   return (
-    <ol className="steps" aria-label="Game progress">
-      {steps.map((step, i) => (
-        <li
-          key={step}
-          className={current === step ? "current" : ""}
-          aria-current={current === step ? "step" : undefined}
-        >
-          <span>0{i + 1}</span>
-          {step}
-        </li>
-      ))}
-    </ol>
+    <header className="masthead">
+      <Link href="/" className="masthead-home" aria-label="3 Mormon Nuns home">
+        <Logo decorative />
+      </Link>
+      {children ?? (
+        <Link href="/how-to-play" className="masthead-link">
+          <Icon name="help" /> How to play
+        </Link>
+      )}
+    </header>
   );
 }

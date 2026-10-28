@@ -11,7 +11,7 @@ export function JoinForm() {
 
   return (
     <form
-      className="join-code-form"
+      className="join-form"
       onSubmit={(e) => {
         e.preventDefault();
         if (code.length === CODE_LENGTH) router.push(`/play/${code}`);
@@ -26,13 +26,14 @@ export function JoinForm() {
         onChange={(e) => setCode(normalizeCode(e.target.value))}
         autoComplete="off"
         autoCapitalize="characters"
+        enterKeyHint="go"
       />
       <button
         type="submit"
         disabled={code.length !== CODE_LENGTH}
-        className="btn-primary"
+        className="btn-primary entry-button entry-button-join"
       >
-        Join game <Icon name="arrowRight" />
+        Join <Icon name="arrowRight" />
       </button>
     </form>
   );

@@ -1008,6 +1008,89 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 - A text scan of the rendered home, setup and lobby pages finds no arrows, dingbats or emoji.
 - A duplicate team name shows a readable toast that a tap dismisses.
 
+### D44: One logo, a plain start page, a rules page, a cleaner host setup
+
+**Status:** Accepted · 2026-10-28 (refines D24, D39). Its "the tagline is gone" point is superseded by D45.
+
+**Decision:**
+
+- **One logo (`Logo` in `brand.tsx`), everywhere.**
+  - A yellow 3, "MORMON" in blue, "NUNS" in red and a yellow drawn spark.
+  - It's sized in `em`, so the site masthead, the big title on the start page, the phone's top bar and the TV header are the same drawing at different sizes.
+  - The old masthead mark (a red 3 with a blue spark crowding its corner) and the separate hero title are gone.
+- **The site masthead** has the logo (linking home) and a **How to play** button where the "PARTY GAME" label was.
+- **Start page (`/`):**
+  - The big logo, the nun illustration without its speech bubble, and two cards worded the same way: **Join a game** (code field and **Join**) and **Host a game** (**Host**).
+  - On a phone, Join comes first.
+  - The tagline and the 1-2-3 round chips are gone.
+  - **Join** waits for a full code with a plain outlined look, not a see-through blue.
+- **How to play (`/how-to-play`):**
+  - Six numbered steps: get everyone in, make teams, write phrases, take turns, three rounds with the same phrases, win.
+  - Three tips, then **Join a game** and **Host a game**.
+  - The round names and rules come from `ROUND_RULES`, so they match the in-game intros word for word.
+  - It doesn't mention Cavan (D40).
+- **Host setup (`/host/new`):**
+  - Titled **Host a game**, with no progress strip.
+  - A **House rules** card (the phone's name for them) with bigger labels and selects, and **Create lobby**.
+  - A **How hosting works** card with three numbered lines. **Game master** is bold.
+  - The illustration and the "Three rounds: Describe it → Charades → One word" note are gone.
+- **CSS:** 149 old home and setup rules were removed and replaced by one block.
+
+**Why:** the user said:
+
+- the top bar's "PARTY GAME" label was useless, and a How to play button that opens an easy rules page would be better;
+- the wording should be consistent ("Join a game" and "Host a game", not "New game");
+- they didn't like the tagline, the round chips or the "Same phrases. Three rounds." bubble ("super AI coded");
+- the logo on the host setup page was "messed up and different than on home page";
+- the setup page needed a cleaner layout, with **game master** in bold and without the round-order note.
+
+**Alternatives:**
+
+- Keeping a separate hero title on the start page: it's what made the two logos look different.
+- Putting the rules in a modal on the start page: a page can be linked and read on a phone before anyone hosts.
+
+**Consequences:**
+
+- `Steps`, `NunIllustration small` and the masthead `label` prop are gone. The dev desk passes its label as the masthead's children.
+- Checked at 390 and 1366 pixels wide, plus the phone lobby at 360 and the TV at 1080p: nothing scrolls sideways.
+
+### D45: A joke tagline under the logo, and an "or" between the start page's cards
+
+**Status:** Accepted · 2026-10-28 (refines D44; supersedes its "the tagline is gone" point). Its single `TAGLINE` constant is superseded by D46 (a random pick from `TAGLINES`).
+
+**Decision:**
+
+- The start page shows one funny line under the big logo: "Bad clues. Worse acting. Still friends (probably)."
+  - It lives in the `TAGLINE` constant at the top of `apps/web/app/page.tsx`, so changing it is a one-line edit.
+  - It's slightly tilted, like the logo, and balanced over two lines on a phone.
+- A round comic **OR** badge sits between **Join a game** and **Host a game**. It has a rule on each side: above and below it side by side, left and right of it when the cards stack on a phone.
+
+**Why:** the user asked for "a tagline under the logo on the homepage, something kinda funny, as this is a game to play at parties with friends", wanted to know where to change it, and wanted an "or" between the two panels.
+
+**Alternatives:** a rotating list of taglines. It's fun, but one line in one constant is easier to find and change, and it doesn't flicker on load.
+
+**Consequences:** the "or" badge is decorative text between two labelled cards, so the cards still read correctly on their own.
+
+### D46: The start page picks its tagline at random on every visit
+
+**Status:** Accepted · 2026-10-28 (refines D45)
+
+**Decision:**
+
+- `TAGLINES` at the top of `apps/web/app/page.tsx` is a list. Each request picks one at random on the server.
+- The picking component calls `await io()` (from `next/cache`) before `Math.random()`, inside a `<Suspense>` boundary.
+  - The rest of the page stays in the prerendered static shell, and only the tagline streams in per request (the route builds as partial prerender, ◐).
+  - The fallback is the first tagline with `visibility: hidden`, so the layout doesn't jump when the real one arrives.
+
+**Why:** the user asked to make the tagline "a list of strings and it picks one at random when the page is rendered".
+
+**Alternatives:**
+
+- Picking in a client component after it loads: the server's HTML would show one line, then swap to another.
+- Making the whole page dynamic: it would lose the static shell just for one line.
+
+**Consequences:** with Cache Components, a bare `Math.random()` in a server component fails the build, so keep the `io()` call if you edit `Tagline`.
+
 ---
 
 ## 4. What is implemented today
@@ -1040,7 +1123,7 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ✅ **Phone layout, drawn icons, Cavan secrecy** (2026-10-28; D39, D40). Phones get a top bar, folds for secondary tools and a thumb-reach dock with one big action. All emoji are replaced by drawn icons, emotes and medals. TV lobby tiles fit every full name. Only the GM can tell who Cavan is.
 
-✅ **Skip swaps, text that always fits, team colours** (2026-10-28; D41, D42). Skipping a turn swaps the player with their next teammate, and they go on the team's next turn. TV panels shrink their content to fit any window, team lists wrap into columns, and medals fit their podium steps. On phones your team comes first and captains get a big naming card. Each team has one colour across every screen. Player messages are a readable toast, and the last emoji-capable symbols are gone (D43).
+✅ **Skip swaps, text that always fits, team colours** (2026-10-28; D41, D42). Skipping a turn swaps the player with their next teammate, and they go on the team's next turn. TV panels shrink their content to fit any window, team lists wrap into columns, and medals fit their podium steps. On phones your team comes first and captains get a big naming card. Each team has one colour across every screen. Player messages are a readable toast, and the last emoji-capable symbols are gone (D43). One logo everywhere, a start page with a joke tagline, a How to play page and a cleaner host setup (D44, D45).
 
 Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransactions) and the profanity filter.
 
@@ -1099,10 +1182,11 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 
 ### `apps/web` (`@tmn/web`)
 
-- **`/`** has two forms:
-  - `join-form.tsx`: enter a code and go to `/play/CODE`
-  - `host-button.tsx`: “Host a new game” links to `/host/new`; its local settings form creates no room until submitted. Submission stores a screen session with `creating: true` and the selected configuration, then opens `/host/CODE` (D21).
-- **`/host/new`**: `setup.tsx` shows all five numeric house rules, reset defaults, capacity validation and the run-of-show explanation.
+- **`/`** has the logo with a joke tagline picked at random per visit (`TAGLINES` in `page.tsx`, D45, D46), the nun, and two cards with an **OR** badge between them (D44):
+  - **Join a game** (`join-form.tsx`): enter a code and go to `/play/CODE`
+  - **Host a game** (`host-button.tsx`): **Host** links to `/host/new`; its local settings form creates no room until submitted. Submission stores a screen session with `creating: true` and the selected configuration, then opens `/host/CODE` (D21).
+- **`/host/new`**: `setup.tsx` ("Host a game") shows the five house rules with Reset, capacity validation, **Create lobby**, and three lines on how hosting works (D44).
+- **`/how-to-play`**: the rules in six steps, using `ROUND_RULES` for the rounds (D44).
 - **`/host/[code]`**: `host-screen.tsx` handles the connection states, then renders `tv.tsx` (`TvBoard`), a full-screen TV layout sized in screen units (D38). It has a header with the phase and a join chip; a lobby with a numbered how-to-join panel, a slanted player count and big player tiles; team and writing columns (with progress dots); and a footer with the house rules and the GM. The join address is a LAN address when opened via `localhost` (D20).
 - **`/play/[code]`**: `page.tsx` reads params inside Suspense (D4) and renders `game.tsx`, which shows:
   - status screens: connecting, the name prompt (with a small, muted "Rejoining? Use the same name as before" hint under the button), lobby not found, kicked, expired, replaced
@@ -1123,7 +1207,7 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 - **`lib/session.ts`** keeps a per-lobby `{ name, token, creating }` in `localStorage`, with every access guarded.
 - **`lib/party-host.ts`** picks the worker host (D12).
 - **`app/api/lan-address/route.ts`** is a dev-only `GET` returning this machine's private IPv4s, Wi-Fi first, for the host screen (D20). It returns 404 in production.
-- **`brand.tsx`**, **`settings.tsx`** and **`team-board.tsx`** share the comic masthead, local cartoon illustration, progress strip, rule fields, real timed SVG wheel, captain naming, live team cards and private phrase forms between devices. `layout.tsx` configures the three fonts; `icon.svg` is the brand favicon. [ASSETS.md](./ASSETS.md) records the illustration’s source and license.
+- **`brand.tsx`** has the `Logo` (used by the site, the phone's top bar and the TV), the site `Masthead` (logo plus **How to play**) and the nun illustration (D44). **`settings.tsx`** and **`team-board.tsx`** share the rule fields, real timed SVG wheel, captain naming, live team cards and private phrase forms between devices. `layout.tsx` configures the three fonts; `icon.svg` is the brand favicon. [ASSETS.md](./ASSETS.md) records the illustration’s source and license.
 - **`globals.css`** defines the shared `field`, `btn-primary` and `btn-secondary` classes as Tailwind v4 `@utility` blocks. Plain rules inside `@layer components` were silently dropped by the v4 pipeline.
 - **Not offered in the UI yet:** the profanity filter. It's stored in config but not enforced.
 
@@ -1550,7 +1634,7 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 
 **Manual end-to-end check** ✅:
 
-1. Run `pnpm dev`. On the computer (the "TV"), open `http://localhost:3000`, click **Host a new game**, configure the rules and click **Create lobby**. The screen shows the code and “Waiting for players…”. No room exists before creation.
+1. Run `pnpm dev`. On the computer (the "TV"), open `http://localhost:3000`, click **Host a game**, then **Host**, configure the rules and click **Create lobby**. The screen shows the code and “Waiting for players…”. No room exists before creation.
 2. Join the code from a phone or a private window. That player becomes **game master**; the TV shows them with a GM tag.
 3. Join from a second device. Both phones and the TV update.
 4. Refresh a phone: it rejoins without asking for a name. Refresh the TV: it reclaims the lobby (about 4 s, D19).

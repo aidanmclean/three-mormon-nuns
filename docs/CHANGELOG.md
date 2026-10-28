@@ -4,6 +4,19 @@ Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE
 
 ## 2026-10-28
 
+- **Changed:** the start page's tagline is picked at random on every visit from `TAGLINES` at the top of `apps/web/app/page.tsx`. The rest of the page stays prerendered ([D46](./ARCHITECTURE.md#d46-the-start-page-picks-its-tagline-at-random-on-every-visit)).
+- **Added:** a joke tagline under the logo on the start page ("Bad clues. Worse acting. Still friends (probably)."). Change it with `TAGLINE` at the top of `apps/web/app/page.tsx`. An **OR** badge now sits between **Join a game** and **Host a game** ([D45](./ARCHITECTURE.md#d45-a-joke-tagline-under-the-logo-and-an-or-between-the-start-pages-cards)).
+- **Changed:** one logo everywhere, on the start page, every site page, the phone's top bar and the TV: yellow 3, blue MORMON, red NUNS, yellow spark. The host setup page's logo no longer differs from the start page ([D44](./ARCHITECTURE.md#d44-one-logo-a-plain-start-page-a-rules-page-a-cleaner-host-setup)).
+- **Changed:** the start page.
+  - The top bar has **How to play** instead of "PARTY GAME".
+  - Two matching cards, **Join a game** and **Host a game**.
+  - The tagline, round chips and speech bubble are gone.
+- **Added:** a **How to play** page with the rules in six steps.
+- **Changed:** host setup.
+  - Titled **Host a game**, with no progress strip.
+  - A **House rules** card and **Create lobby**.
+  - Three lines on how hosting works, with **game master** in bold.
+  - The round-order note and the illustration are gone.
 - **Fixed:** messages to players were an invisible box with invisible text (their colours came from a variable that only existed inside the app). They're now a dark card with light text and a warning icon, under the top bar. Tap to dismiss, or it clears after 4 seconds ([D43](./ARCHITECTURE.md#d43-player-messages-are-a-dark-dismissable-toast-impossible-actions-are-disabled-instead)).
 - **Changed:** **Skip** is disabled, with one line saying why, when nobody else on the team is connected, instead of failing with a message.
 - **Fixed:** the last emoji-capable symbols are gone: the logo star, the arrows on **Host a new game**, **Join game** and **Create lobby**, and **Reset defaults** now use drawn icons.

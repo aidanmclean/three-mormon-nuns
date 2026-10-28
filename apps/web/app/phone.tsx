@@ -2,6 +2,7 @@
 
 import type { LobbyView, PlayerView } from "@tmn/game";
 import type { ReactNode } from "react";
+import { Logo } from "./brand";
 import { Icon } from "./icons";
 import { playerColor, teamColor } from "./palette";
 
@@ -26,8 +27,8 @@ export function PhoneShell({
   return (
     <div className="m-app">
       <header className="m-bar">
-        <span className="m-logo" role="img" aria-label="3 Mormon Nuns">
-          3<Icon name="spark" className="m-logo-spark" />
+        <span className="m-logo">
+          <Logo />
         </span>
         <span className="m-phase">{phase}</span>
         <span className="m-code">

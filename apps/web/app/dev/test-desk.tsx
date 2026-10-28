@@ -94,7 +94,9 @@ export function TestDesk() {
   };
   return (
     <div className="site-shell test-desk">
-      <Masthead label="LOCAL MULTIPLAYER TEST DESK" />
+      <Masthead>
+        <span className="masthead-label">LOCAL MULTIPLAYER TEST DESK</span>
+      </Masthead>
       <main>
         <div className="page-heading">
           <h1>Test every screen</h1>

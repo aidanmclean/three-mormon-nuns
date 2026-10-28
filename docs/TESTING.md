@@ -10,6 +10,12 @@ pnpm dev
 
 This starts the web app at **http://localhost:3000** and the game server at **http://localhost:8787**. If the web app is already running, start only the missing service with `pnpm --filter @tmn/party dev`. Do not start a second worker on port 8787.
 
+## Check the start pages
+
+1. Open **http://localhost:3000** on a phone-sized window and a laptop-sized one. The same logo is in the top bar and as the big title, with the tagline under it. **How to play** sits top right. The cards read **Join a game** and **Host a game**, with an **OR** badge between them; on a phone, Join comes first. **Join** stays outlined until four letters are typed.
+2. **How to play** opens six numbered steps and the three rounds, with **Join a game** and **Host a game** at the bottom. **Back** returns to the start page.
+3. **Host** opens **Host a game**: the **House rules** card, **Create lobby**, and three lines on hosting with **game master** in bold. The logo matches the start page's. Nothing scrolls sideways at any width.
+
 ## See and control every screen on one computer
 
 Open **http://localhost:3000/dev** (or click **Test multiple players** on the development homepage).

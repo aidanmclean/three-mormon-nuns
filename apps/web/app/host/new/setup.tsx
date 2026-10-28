@@ -3,7 +3,7 @@
 import { ConfigSchema, DEFAULT_CONFIG, randomCode } from "@tmn/game";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Masthead, NunIllustration, Steps } from "@/app/brand";
+import { Masthead } from "@/app/brand";
 import { Icon } from "@/app/icons";
 import { Settings } from "@/app/settings";
 import { devicePath, saveScreen } from "@/lib/session";
@@ -15,15 +15,14 @@ export function HostSetup() {
   const [creating, setCreating] = useState(false);
   return (
     <div className="site-shell">
-      <Masthead label="NEW GAME" />
-      <main className="setup-main">
-        <Steps current="setup" />
+      <Masthead />
+      <main className="setup-page">
         <div className="page-heading">
-          <h1>Game setup</h1>
-          <p>Choose the rules before creating your lobby.</p>
+          <h1>Host a game</h1>
+          <p>Pick the house rules, then open the lobby on this screen.</p>
         </div>
         <form
-          className="setup-grid"
+          className="setup-layout"
           onSubmit={(e) => {
             e.preventDefault();
             const parsed = ConfigSchema.safeParse(config);
@@ -37,9 +36,9 @@ export function HostSetup() {
             router.push(devicePath(`/host/${code}`));
           }}
         >
-          <section className="paper-panel">
+          <section className="paper-panel setup-panel">
             <div className="panel-heading">
-              <h2>Game settings</h2>
+              <h2>House rules</h2>
               <button
                 type="button"
                 className="text-button"
@@ -48,7 +47,7 @@ export function HostSetup() {
                   setError(null);
                 }}
               >
-                Reset defaults <Icon name="undo" />
+                <Icon name="undo" /> Reset
               </button>
             </div>
             <Settings
@@ -64,31 +63,30 @@ export function HostSetup() {
                   {error}
                 </p>
               )}
-              <button type="submit" className="btn-primary" disabled={creating}>
+              <button
+                type="submit"
+                className="btn-primary entry-button"
+                disabled={creating}
+              >
                 {creating ? "Creating…" : "Create lobby"}
-                <Icon name="arrowUpRight" />
+                <Icon name="arrowRight" />
               </button>
             </div>
           </section>
-          <aside className="setup-aside">
-            <div className="dither-box">
-              <NunIllustration small />
-            </div>
-            <h2>How to host</h2>
-            <p>
-              Keep this screen visible. Everyone, including you, joins on their
-              phone.
-            </p>
-            <p>
-              The first player to join is the game master and controls the game.
-            </p>
-            <div className="aside-note">
-              <strong>Three rounds</strong>
-              <span>
-                Describe it <Icon name="arrowRight" /> Charades{" "}
-                <Icon name="arrowRight" /> One word
-              </span>
-            </div>
+          <aside className="setup-notes">
+            <h2>How hosting works</h2>
+            <ol>
+              <li>
+                Keep this screen where everyone can see it. It shows the code,
+                the timer and the scores.
+              </li>
+              <li>Everyone joins on their phone, you too if you’re playing.</li>
+              <li>
+                The first person to join is the <strong>game master</strong>.
+                They run the game from their phone, and can still change these
+                rules in the lobby.
+              </li>
+            </ol>
           </aside>
         </form>
       </main>

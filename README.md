@@ -36,7 +36,7 @@ pnpm dev
 
 Both services are required to create or join a lobby. If the web app is already running on its own, start the game server with `pnpm --filter @tmn/party dev`. A missing game server shows a connection error after 8 seconds; the page keeps retrying, and **Try again** retains your pending room and rules.
 
-On the computer you'll use as the shared screen, click **Host a new game**, choose the rules, then **Create lobby**. The shared screen shows a 4-letter code. Join that code from phones, or from private windows (a normal second tab shares your session). The first player to join is the **game master** and controls the game from their phone.
+On the computer you'll use as the shared screen, press **Host** under **Host a game**, choose the rules, then **Create lobby**. **How to play** (top right) explains the rules. The shared screen shows a 4-letter code. Join that code from phones, or from private windows (a normal second tab shares your session). The first player to join is the **game master** and controls the game from their phone.
 
 The game master presses **Everyone’s in** to close the roster. The server’s wheel assigns players one at a time; first-drawn players become team captains and save their team names. The GM can correct memberships, then start writing. Players submit private phrases under the room’s quota and word limits; if the GM has named a Cavan, the GM approves or rejects each of Cavan’s phrases. The GM then starts the game: three timed rounds (describe it, charades, one word) with teams taking turns, then the results and **Play again**.
 

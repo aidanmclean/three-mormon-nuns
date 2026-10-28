@@ -15,6 +15,7 @@ const PATHS = {
   minus: "M5 12h14",
   close: "M6 6l12 12M18 6 6 18",
   alert: "M12 3.5 2.5 20h19zM12 10v4.5M12 17.5h.01",
+  help: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.4M12 17h.01",
   chevronDown: "M6 9l6 6 6-6",
   skip: "M5 6l9 6-9 6zM18 6v12",
   stop: "M7 7h10v10H7z",

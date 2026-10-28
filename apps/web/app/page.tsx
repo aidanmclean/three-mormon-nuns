@@ -14,7 +14,6 @@ const TAGLINES = [
   "Charades, but with more yelling.",
   "Your friends are worse at this than you think!",
   "A dead horse's worst nightmare!",
-  ""
 ];
 
 // The start page (D44): the logo and the nun, then the two ways in, worded

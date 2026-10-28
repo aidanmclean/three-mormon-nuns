@@ -117,8 +117,9 @@ function toAction(
         { maxPlayers: s.num },
         { phrasesPerPlayer: s.num, maxWordsPerPhrase: s.num },
         { profanityFilter: s.str },
+        { showGuessed: s.mask % 2 === 0 },
         { moderation: s.str }, // removed field: must be rejected
-      ][s.mask % 6],
+      ][s.mask % 7],
     },
     kick: { type: "kick", playerId: target },
     rename: { type: "rename", playerId: target, name: s.name },

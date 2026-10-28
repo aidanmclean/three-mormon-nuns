@@ -3,6 +3,7 @@
 import {
   type ByeReason,
   type ClientMessage,
+  DEFAULT_CONFIG,
   type EmoteKind,
   HEARTBEAT_INTERVAL_MS,
   LOBBY_RESPONSE_TIMEOUT_MS,
@@ -124,7 +125,10 @@ export function useLobby(
       const msg: ClientMessage | null = screen?.creating
         ? {
             type: "create",
-            ...(screen.config ? { config: screen.config } : {}),
+            // A config saved by an older build may lack newer settings.
+            ...(screen.config
+              ? { config: { ...DEFAULT_CONFIG, ...screen.config } }
+              : {}),
           }
         : screen?.token
           ? { type: "screen", token: screen.token }

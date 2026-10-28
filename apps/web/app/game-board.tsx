@@ -9,6 +9,7 @@ import {
   Podium,
   playerName,
   Scoreboard,
+  TurnGuesses,
   teamName,
   useTurnClock,
   winnerText,
@@ -124,17 +125,7 @@ export function GameBoard({
               <h1 className="tv-title">
                 {turn.points} for {upTeam}
               </h1>
-              {turn.guessed?.length ? (
-                <ol className="guessed-list tv-guessed">
-                  {turn.guessed.map((p) => (
-                    <li key={p}>
-                      <Icon name="check" /> {p}
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="tv-rules">Nothing guessed</p>
-              )}
+              <TurnGuesses turn={turn} big />
               <p className="tv-note">
                 {up} can still fix a disputed last guess.
               </p>

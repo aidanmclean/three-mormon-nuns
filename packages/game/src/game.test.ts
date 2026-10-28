@@ -198,6 +198,21 @@ describe("a turn", () => {
     expect(leaks(null)).toEqual([]);
   });
 
+  it("lists the guessed phrases to everyone when showGuessed is on (D47)", () => {
+    const { l, gm } = startedGame({ showGuessed: true });
+    const player = turn(l.state).playerId;
+    startTurn(l, gm);
+    ok(l.act(player, { type: "next" }));
+    expect(viewFor(l.state, null).game?.turn?.guessed).toBeNull();
+    ok(l.act(gm, { type: "endTurn" }));
+    expect(l.state.phase).toBe("turnReview");
+    const [first] = turn(l.state).seen;
+    for (const viewer of [null, gm, player])
+      expect(viewFor(l.state, viewer).game?.turn?.guessed).toEqual([
+        l.state.phrases[first ?? ""]?.text,
+      ]);
+  });
+
   it("goes to review when time's up; back and forward settle the last guess", () => {
     const { l, gm } = startedGame({ roundLengthSec: 15 });
     const player = turn(l.state).playerId;
@@ -213,7 +228,12 @@ describe("a turn", () => {
       maxCursor: 2,
       remainingMs: 0,
     });
-    expect(viewFor(l.state, null).game?.turn?.guessed).toHaveLength(2);
+    // Off by default: only the describer gets the list back (D47).
+    expect(viewFor(l.state, null).game?.turn?.guessed).toBeNull();
+    const other = Object.keys(l.state.players).find((id) => id !== player);
+    expect(viewFor(l.state, other ?? null).game?.turn?.guessed).toBeNull();
+    expect(viewFor(l.state, player).game?.turn?.guessed).toHaveLength(2);
+    expect(viewFor(l.state, null).game?.turn?.points).toBe(2);
     expect(l.act(player, { type: "next" })).toMatchObject({ ok: false });
     expect(l.act(player, { type: "forward" })).toMatchObject({ ok: false });
     ok(l.act(player, { type: "back" }));

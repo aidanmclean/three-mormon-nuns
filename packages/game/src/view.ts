@@ -52,7 +52,11 @@ export interface TurnView {
    * while they reveal it. Everyone else gets null (§5.3).
    */
   currentPhrase: string | null;
-  /** Phrases guessed this turn; public only once the turn is in review. */
+  /**
+   * Phrases guessed this turn, once it's in review. With `showGuessed` off
+   * only the player who described gets them (D47); everyone else gets null
+   * and sees `points` alone.
+   */
   guessed: string[] | null;
 }
 
@@ -210,9 +214,10 @@ function gameView(
       carried: turn.carried,
       revealed: turn.revealed,
       currentPhrase: current,
-      // Guessed phrases were said out loud, so review can show them to settle disputes.
+      // The describer saw them all already; the room sees them only if the
+      // house rules say so (D47).
       guessed:
-        state.phase === "turnReview"
+        state.phase === "turnReview" && (state.config.showGuessed || mine)
           ? turn.seen
               .slice(0, turn.cursor)
               .flatMap((id) =>

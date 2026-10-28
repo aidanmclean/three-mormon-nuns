@@ -2,7 +2,7 @@
 
 import type { EmoteKind, LobbyView, TurnView } from "@tmn/game";
 import { type CSSProperties, useEffect, useState } from "react";
-import { EmoteIcon, Medal } from "./icons";
+import { EmoteIcon, Icon, Medal } from "./icons";
 import { teamColor } from "./palette";
 
 // Pieces shared by the phone game screen and the TV game board (D31).
@@ -105,6 +105,67 @@ export function winnerText(view: LobbyView): string {
   if (winners.length === 0) return "";
   if (winners.length === 1) return `Winner: ${teamName(view, winners[0])}`;
   return `It's a tie: ${winners.map((id) => teamName(view, id)).join(" and ")}`;
+}
+
+/** Most stamps the tally draws before it sums up the rest as "+N". */
+const TALLY_MAX = 12;
+
+/**
+ * What a turn's review shows (D47): the guessed phrases when this viewer may
+ * see them, otherwise one stamp per point so the screen still celebrates.
+ */
+export function TurnGuesses({
+  turn,
+  big = false,
+}: {
+  turn: TurnView;
+  big?: boolean;
+}) {
+  if (turn.points === 0)
+    return <p className={big ? "tv-rules" : "m-sub"}>Nothing guessed</p>;
+  if (turn.guessed)
+    return (
+      <ol className={big ? "guessed-list tv-guessed" : "m-guessed"}>
+        {turn.guessed.map((p) => (
+          // Phrases are unique within a lobby, so the text is a stable key.
+          <li key={p}>
+            <Icon name="check" /> {p}
+          </li>
+        ))}
+      </ol>
+    );
+  const over = turn.points > TALLY_MAX;
+  const stamps = over ? TALLY_MAX - 1 : turn.points;
+  return (
+    <div className={`tally ${big ? "tally-big" : ""}`}>
+      <ol
+        className="tally-marks"
+        aria-label={`${turn.points} phrase${turn.points === 1 ? "" : "s"} guessed`}
+      >
+        {Array.from({ length: stamps }, (_, i) => (
+          <li
+            // biome-ignore lint/suspicious/noArrayIndexKey: stamps are identical
+            key={i}
+            className="tally-mark"
+            style={{ "--i": i } as CSSProperties}
+            aria-hidden
+          >
+            <Icon name="check" />
+          </li>
+        ))}
+        {over && (
+          <li
+            className="tally-mark tally-more"
+            style={{ "--i": stamps } as CSSProperties}
+            aria-hidden
+          >
+            +{turn.points - stamps}
+          </li>
+        )}
+      </ol>
+      <p className="tally-note">The phrases stay secret</p>
+    </div>
+  );
 }
 
 /** Floating reactions over the whole TV screen, in every phase (D31). */

@@ -4,7 +4,7 @@
 // Takes about a minute: the wheel spins and one turn runs out on the server clock.
 
 const HOST = process.env.PARTY_HOST ?? "localhost:8787";
-const V = 7; // keep in sync with PROTOCOL_VERSION in packages/game
+const V = 8; // keep in sync with PROTOCOL_VERSION in packages/game
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const code = Array.from(
   { length: 4 },
@@ -81,6 +81,7 @@ const CONFIG = {
   phrasesPerPlayer: 1,
   maxWordsPerPhrase: 3,
   profanityFilter: "off",
+  showGuessed: true,
 };
 
 console.log(`game ${code} on ${HOST}`);

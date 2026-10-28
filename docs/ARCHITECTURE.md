@@ -77,7 +77,7 @@ A Kahoot-style take on Monikers / Fishbowl.
 2. The game master starts the turn. The active player gets the turn length (1 minute by default) and sees one phrase at a time on their phone while their team guesses.
 3. **Next** means it was guessed: the team scores +1 and a new phrase appears. A guessed phrase doesn't come back for the rest of that round.
 4. **Back** undoes the last Next (e.g. it was hit by accident): the team loses that point and the previous phrase is shown again.
-5. When the timer ends, the turn goes into **review**. The active player can still go **back**, all the way to the first phrase of their turn, and **forward** again up to the last phrase they saw, to settle a disputed last guess. No new phrases are drawn in review.
+5. When the timer ends, the turn goes into **review**. The active player can still go **back**, all the way to the first phrase of their turn, and **forward** again up to the last phrase they saw, to settle a disputed last guess. No new phrases are drawn in review. Everyone sees how many were guessed; the phrases themselves are listed for the room only if the **Show guessed phrases** house rule is on (off by default, D47).
 6. The game master presses **Proceed**: the turn's score is locked in and the next team's player is up.
 7. When the last phrase in the pile is guessed, **the timer stops right there** and the round ends. The turn still goes to review, so the last guess can be disputed. After Proceed, **the same player keeps going** into the next round with whatever time was left (D17). Rotation then continues normally from them.
 8. Rounds 2 and 3 reuse the whole pile, with different clue rules:
@@ -100,7 +100,7 @@ These were added after the design board and are the main drivers of [§5.6](#56-
 
 ### 1.4 Fun extras (from the board, not yet designed)
 
-- **Backdoors:** a prank that rewrites every phrase, and a reveal-all. These are intentional features, not vulnerabilities.
+- **Backdoors:** a prank that rewrites every phrase, and a reveal-all. These are intentional features, not vulnerabilities. They must be very hard or impossible to trigger for anyone who doesn't already know how (Q6).
 - **Periodic table easter egg:** show the element when a phrase is an element name.
 - **Tomato button**, and joke "microtransactions".
 - **Personalization** during join (optional "phase 3" on the board).
@@ -1093,6 +1093,31 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ---
 
+### D47: Guessed phrases are hidden after a turn unless a house rule shows them
+
+**Status:** Accepted · 2026-10-28 (refines D31)
+
+**Decision:**
+
+- A new house rule, `config.showGuessed` (**Show guessed phrases**), is off by default. The host sets it on the setup page, and the GM can change it in the lobby with the other house rules.
+- `viewFor` sends `game.turn.guessed` in review to everyone when it's on. When it's off, only the player who described gets it; everyone else, the TV included, gets `null` and sees `points` alone.
+- With the list hidden, the TV and phones show one stamped check per point (up to 12, then "+N") and "The phrases stay secret". The describer's phone still lists them, next to the dispute controls.
+- The setting is a switch in the same row style as the other rules. The TV footer adds "guessed phrases shown" only when it's on.
+
+**Why:** the user asked for "an option in game/lobby settings with off by default that shows the guessed words after each turn … and look good either way". Until now review always listed them.
+
+**Alternatives:**
+
+- Hiding the list in the client only: the phrases would still reach every device, so it would be cosmetic. The server decides, as for every other secret (§5.3).
+- Hiding it from the describer too: they saw every phrase while describing, and the list helps them settle a disputed guess.
+
+**Consequences:**
+
+- `Config` gains a required field, so protocol 8 and schema 10. Stored lobbies reset; deploy party before web.
+- A host config saved in the browser by an older build is merged over `DEFAULT_CONFIG` before `create`, so it still validates.
+
+---
+
 ## 4. What is implemented today
 
 ✅ **Slice 1: the lobby phase, end to end** (2026-10-26). It covers:
@@ -1125,22 +1150,24 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ✅ **Skip swaps, text that always fits, team colours** (2026-10-28; D41, D42). Skipping a turn swaps the player with their next teammate, and they go on the team's next turn. TV panels shrink their content to fit any window, team lists wrap into columns, and medals fit their podium steps. On phones your team comes first and captains get a big naming card. Each team has one colour across every screen. Player messages are a readable toast, and the last emoji-capable symbols are gone (D43). One logo everywhere, a start page with a joke tagline, a How to play page and a cleaner host setup (D44, D45).
 
+✅ **Show guessed phrases** (2026-10-28; D47). A house rule, off by default, that lists a turn's guessed phrases to the whole room in review. Off, everyone but the describer sees a stamped tally instead.
+
 Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransactions) and the profanity filter.
 
 ### `packages/game` (`@tmn/game`)
 
 | File            | What's in it                                                                                                                                                                                                                                                                                                                                         |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `constants.ts`  | Protocol version 6 and schema version 8, resource limits, heartbeat/presence timings, expiry/rate limits, ROUNDS and ROUND_RULES, turn countdown/time limits and EMOTES (D31).                                                                                                                                                                       |
+| `constants.ts`  | Protocol version 8 and schema version 10, resource limits, heartbeat/presence timings, expiry/rate limits, ROUNDS and ROUND_RULES, turn countdown/time limits and EMOTES (D31).                                                                                                                                                                      |
 | `code.ts`       | `normalizeCode`, `isValidCode`, `randomCode`.                                                                                                                                                                                                                                                                                                        |
 | `names.ts`      | `cleanName` (NFC; strips control and format characters such as zero-width spaces and bidi overrides; collapses whitespace), `nameKey` (case-insensitive identity) and `validateName`.                                                                                                                                                                |
-| `config.ts`     | `ConfigSchema` (zod, ranges from `CONFIG_RANGES`) and `DEFAULT_CONFIG` (60 s turns, 2 teams, 3 phrases each, up to 3 words per phrase, 20 players; no moderation setting: Cavan is a role, D30).                                                                                                                                                     |
-| `types.ts`      | LobbyState v9: players, GM and Cavan, teams with saved-name flags, draft mode (wheel/manual, D32) and queue/stage/deadline, public spin snapshots, private phrase records with status, the game (round, pile, team and player scores, rotation cursors, players owed a turn after a skip (D41), turn, previous-turn snapshot) and screen key.        |
+| `config.ts`     | `ConfigSchema` (zod, ranges from `CONFIG_RANGES`) and `DEFAULT_CONFIG` (60 s turns, 2 teams, 3 phrases each, up to 3 words per phrase, 20 players, guessed phrases hidden (D47); no moderation setting: Cavan is a role, D30).                                                                                                                       |
+| `types.ts`      | LobbyState v10: players, GM and Cavan, teams with saved-name flags, draft mode (wheel/manual, D32) and queue/stage/deadline, public spin snapshots, private phrase records with status, the game (round, pile, team and player scores, rotation cursors, players owed a turn after a skip (D41), turn, previous-turn snapshot) and screen key.       |
 | `protocol.ts`   | Strict bounded create/screen/join, GM controls, startTeams, nameTeam, addToTeam/removeFromTeam, confirmTeams, submitPhrase/deletePhrase, Cavan moderation (setCavan/approvePhrase/rejectPhrase), game actions (startGame … playAgain) and emotes. Client wheel/timer results are never accepted.                                                     |
 | `game.ts`       | The game loop (D31): `startGame`, rotation (`prepare`), turn actions for the active player (`next`/`back`/`forward`), round intros (`acknowledge`, `beginRound`), GM clock controls, `proceed` with the D17 carry-over, `restartPrevTurn`, `playAgain`, the `_turnTick` deadline and `normalizeGame` (dropped/kicked players, auto-start of intros). |
 | `reducer.ts`    | Creation, joins, roles, GM actions, private writing, normalization and server draft ticks; `draft.ts` owns spin selection/timing and team edits, and `phrases.ts` owns author-only phrase operations; `phrases.ts` also handles Cavan moderation, and `game.ts` the game loop.                                                                       |
 | `invariants.ts` | Valid unique player/team names, roles, config/capacity, team order, exact membership lists, valid connected captains whenever possible, and token isolation. Runs after each transition in the shell. Also checks Cavan, phrase status, and the game: round, pile, scores, cursors and the turn's shape per phase.                                   |
-| `view.ts`       | `viewFor(state, viewer)`. It copies fields one by one, so tokens can't leak. Live phrases reach only the active player (or a revealing GM); Cavan's pending phrases only the GM.                                                                                                                                                                     |
+| `view.ts`       | `viewFor(state, viewer)`. It copies fields one by one, so tokens can't leak. Live phrases reach only the active player (or a revealing GM); Cavan's pending phrases only the GM; a turn's guessed list only the describer unless `showGuessed` is on (D47).                                                                                          |
 
 **Tests (95, Vitest):**
 
@@ -1193,8 +1220,8 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
   - a reconnecting banner and an error toast
   - `lobby-screen.tsx`: the code, the player list (ASCII face/status markers plus a dimmed name and an "offline" label; role badges; the GM's ⋯ menu to hand off game master, rename, kick) and settings (dropdowns for the GM, read-only for everyone else)
   - `writing-screen.tsx`: phrase forms with status badges (pending/rejected for Cavan), the GM's moderation queue (Approve/Reject) and **Start the game** (D30).
-  - `game-screen.tsx`: the phone during a game (D31): round intro with **Got it**, turn ready (with ±10 s and restart-previous for the GM), the active player's countdown, phrase card, **Got it**/**Back**, the GM's pause/resume/end/reveal controls, review with Back/Forward and **Proceed**, results with **Play again**, and an emote bar.
-- **`/host/[code]`** in game phases renders `game-board.tsx` inside the TV layout: who's up, the clock, round rules, phrases left, scoreboard, the guessed list in review, and the winner with the podium. Floating emotes (`EmoteLayer`) cover the whole TV. Shared pieces (clock hook, scoreboard, round banner, emote icons) are in `game-bits.tsx`.
+  - `game-screen.tsx`: the phone during a game (D31): round intro with **Got it**, turn ready (with ±10 s and restart-previous for the GM), the active player's countdown, phrase card, **Got it**/**Back**, the GM's pause/resume/end/reveal controls, review with Back/Forward and **Proceed**, results with **Play again**, and an emote bar. Review shows `TurnGuesses` (in `game-bits.tsx`): the guessed list, or a stamped tally when the house rules hide it (D47).
+- **`/host/[code]`** in game phases renders `game-board.tsx` inside the TV layout: who's up, the clock, round rules, phrases left, scoreboard, the guessed list in review (or a stamped tally when it's hidden, D47), and the winner with the podium. Floating emotes (`EmoteLayer`) cover the whole TV. Shared pieces (clock hook, scoreboard, round banner, emote icons) are in `game-bits.tsx`.
 - **`team-board.tsx`** shows the wheel, or "Pick the teams" in manual mode (D32). Your team comes first; a captain gets a big **Name your team** card (D42). The GM gets a **Not on a team yet** list with one button per team, in the team colours. The lobby's `TeamModeChoice` (wheel or manual) sits above **Everyone’s in**.
 - **`fit.tsx`** (`Fit`) shrinks a TV panel's content until it fits (D42). **`palette.ts`** has the player colours (D39) and `teamColor` (D42).
 - **Emotes** (`EmoteLayer` in `game-bits.tsx`): each burst gets a random `seed` when it arrives (`use-lobby.ts`). A hash of the seed sets CSS variables for its position, drift, rise, tilt, size and duration, so emotes scatter across the screen instead of rising in a line.
@@ -1233,9 +1260,9 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 - Every accepted transition is persisted **before** it is broadcast.
 - The stored blob carries a `schemaVersion` ([§6.5](#65-state-integrity)).
 
-**`LobbyState`.** Implemented schema v9 contains:
+**`LobbyState`.** Implemented schema v10 contains:
 
-- `code`, `phase`, validated `config`, `schemaVersion`, creation/expiry timestamps;
+- `code`, `phase`, validated `config` (including `showGuessed`, D47), `schemaVersion`, creation/expiry timestamps;
 - `players` with server-only session tokens, status, waiting flag and team ID;
 - `roles: { gamemasterId, cavanId }` (D30) and the server-only `screenToken`;
 - ordered `teams` with `name`, `nameConfirmed`, `captainId` and assignment-ordered `memberIds`;
@@ -1276,7 +1303,7 @@ After each change the server sends every connection `viewFor(state, playerId)` r
 | Game master, during writing                       | `moderation`: Cavan's pending phrases with their text (D30); only the GM (and Cavan themselves) see who Cavan is and Cavan's pending counts (D40) |
 | Each author                                       | their own phrases, with status (approved / pending / rejected)                                                                                    |
 | Everyone, once the game is over                   | `game.leaders`: the top three describers by points (D36)                                                                                          |
-| Everyone, during `turnReview`                     | `game.turn.guessed`: the phrases guessed that turn (they were said out loud)                                                                      |
+| Active player, during `turnReview`                | `game.turn.guessed`: the phrases guessed that turn. Everyone else gets it only if `showGuessed` is on (D47)                                       |
 | Everyone, during the game                         | `game.owed`: who the GM skipped, who takes their team's next turn (D41)                                                                           |
 | Everyone                                          | names, teams, the GM flag, scores, phase, round, timer, counts only for phrases                                                                   |
 
@@ -1532,13 +1559,13 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 
 ### 6.9 Accepted risks & non-goals
 
-| Risk                                                  | Why it's accepted                                                                                     |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Anyone with the code can join                         | That's how party games work. Codes aren't listed anywhere, and late joiners need the GM to place them |
-| Typing an inactive player's name takes them over (D7) | Required for rejoin-by-name. Nothing is at stake, and the GM can kick or rename                       |
-| Session tokens are convenience, not authentication    | They only shortcut reconnects                                                                         |
-| Backdoors (prank rewrite, reveal-all)                 | Intentional game features. When built, they must still be server-side actions with role checks        |
-| Phrases aren't encrypted in storage                   | Deleted at expiry; nothing sensitive                                                                  |
+| Risk                                                  | Why it's accepted                                                                                                          |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Anyone with the code can join                         | That's how party games work. Codes aren't listed anywhere, and late joiners need the GM to place them                      |
+| Typing an inactive player's name takes them over (D7) | Required for rejoin-by-name. Nothing is at stake, and the GM can kick or rename                                            |
+| Session tokens are convenience, not authentication    | They only shortcut reconnects                                                                                              |
+| Backdoors (prank rewrite, reveal-all)                 | Intentional game features. When built: server-side, role-checked, and hidden well enough that nobody stumbles on them (Q6) |
+| Phrases aren't encrypted in storage                   | Deleted at expiry; nothing sensitive                                                                                       |
 
 **Not doing:** accounts, auth, encryption at rest, anti-cheat beyond hiding phrases, audit logs.
 
@@ -1610,14 +1637,14 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 
 **Commands** (run all of them before finishing any change):
 
-| Command                             | What it checks                                                                                                                                                                                                                      |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm lint`                         | Biome over the whole repo                                                                                                                                                                                                           |
-| `pnpm typecheck`                    | `tsc --noEmit` in every package; web runs `next typegen` first so route types like `PageProps<"/play/[code]">` exist                                                                                                                |
-| `pnpm test`                         | Vitest in `packages/game` (unit + property tests)                                                                                                                                                                                   |
-| `pnpm --filter @tmn/web build`      | Production build, including Next's type check                                                                                                                                                                                       |
-| `pnpm --filter @tmn/party e2e`      | 64 WebSocket checks against a running dev worker (start `pnpm dev` first). Takes ~40 s. Also runs in CI                                                                                                                             |
-| `pnpm --filter @tmn/party e2e:game` | 30 checks playing a whole game over real sockets: wheel, Cavan vetting, privacy, pile-out carry-over, the server clock ending a turn, skip/go next, pause/add time, emotes, results and podium, Play again. ~1 min. Also runs in CI |
+| Command                             | What it checks                                                                                                                                                                                                                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm lint`                         | Biome over the whole repo                                                                                                                                                                                                                          |
+| `pnpm typecheck`                    | `tsc --noEmit` in every package; web runs `next typegen` first so route types like `PageProps<"/play/[code]">` exist                                                                                                                               |
+| `pnpm test`                         | Vitest in `packages/game` (unit + property tests)                                                                                                                                                                                                  |
+| `pnpm --filter @tmn/web build`      | Production build, including Next's type check                                                                                                                                                                                                      |
+| `pnpm --filter @tmn/party e2e`      | 64 WebSocket checks against a running dev worker (start `pnpm dev` first). Takes ~40 s. Also runs in CI                                                                                                                                            |
+| `pnpm --filter @tmn/party e2e:game` | 30 checks playing a whole game over real sockets: wheel, Cavan vetting, privacy, pile-out carry-over, the server clock ending a turn, a skip that swaps teammates, pause/add time, emotes, results and podium, Play again. ~1 min. Also runs in CI |
 
 **Unit and property tests** (`packages/game`):
 
@@ -1628,9 +1655,9 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 - ✅ Automatic wheel draft: timed server progression, frozen roster, balance, first-drawn captain order, disconnected/kicked winners, late joins, captain naming, GM corrections and writing gates (D28).
 - ✅ Writing: phase/author permissions, quota, word/length/duplicate validation, author-only text views, deletion, kick cleanup and reconnect persistence.
 - ✅ **Cavan** (`cavan.test.ts`): permissions, GM/Cavan exclusivity, pending/approve/reject, quota after rejection, start gate, re-vetting on designation.
-- ✅ **Game loop** (`game.test.ts`): start conditions, round intros, A1/B1/A2/B2 rotation (and uneven teams), countdown, next/back, review bounds, timer and late-next timeouts, pause/add time/resume, restart previous turn, pile-out carry-over into the next round and within a round, results and ties, play again, dropped/kicked active players, late joiners, emotes.
-- ✅ **Skip, go next and the podium** (`skip.test.ts`): passing to a teammate with the same time, falling through to the next team, makeup turns that don't cost anyone their place, immediate swaps, refusals, kicks, describer credit, ranking with ties, and undo via restart.
-- ✅ **Game property test** (`game.property.test.ts`): random turn buttons, GM controls (including skip and go next), clock jumps, presence flips, joins, kicks and garbage from a started game never throw, never mutate, never break an invariant, and really exercise next/back/proceed/timers.
+- ✅ **Game loop** (`game.test.ts`): start conditions, who sees the guessed list in review (D47), round intros, A1/B1/A2/B2 rotation (and uneven teams), countdown, next/back, review bounds, timer and late-next timeouts, pause/add time/resume, restart previous turn, pile-out carry-over into the next round and within a round, results and ties, play again, dropped/kicked active players, late joiners, emotes.
+- ✅ **Skip and the podium** (`skip.test.ts`): a skip swaps with the next teammate, who plays now with the same time; the turn never leaves the team; the skipped player takes the team's next turn, waits while away and is forgotten if kicked; only the GM can skip, before the turn starts; describer credit and the top three with ties (D41, D36).
+- ✅ **Game property test** (`game.property.test.ts`): random turn buttons, GM controls (including skip), clock jumps, presence flips, joins, kicks and garbage from a started game never throw, never mutate, never break an invariant, and really exercise next/back/proceed/timers.
 
 **Manual end-to-end check** ✅:
 
@@ -1657,22 +1684,22 @@ If your LAN uses `172.16–31.x` addresses, add them to `allowedDevOrigins` in `
 
 The design makes an assumption for each of these, so work isn't blocked. Confirm or change them, and record the answer here and in the decision log.
 
-| #   | Question                                                                      | Current assumption / answer                                                                                                                                                                            |
-| --- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Q1  | When an inactive player's turn comes up, does their **team** still play?      | Yes: the next active teammate goes; the team is skipped only if nobody on it is active                                                                                                                 |
-| Q2  | Does the original game master get GM back when they rejoin?                   | No. GM stays with whoever it passed to; the GM can hand it back with "Make game master" ✅ built this way                                                                                              |
-| Q3  | How many rounds, and how do they work?                                        | **Answered 2026-10-26:** 3 rounds with the same mechanics and the same full pile each round (§1.2)                                                                                                     |
-| Q4  | When the pile empties mid-turn, what happens to the time left?                | **Answered 2026-10-26:** the timer stops; the same player keeps going into the next round with the time that was left (D17)                                                                            |
-| Q5  | Are kicked players banned from rejoining?                                     | No; after team confirmation they land in the waiting room, so the GM controls it                                                                                                                       |
-| Q6  | How are the backdoors triggered?                                              | Undecided; must be server-side and role-gated. Not built (§1.4)                                                                                                                                        |
-| Q7  | Does the TV screen join as a player or a spectator?                           | **Answered 2026-10-26:** the TV _is_ the host: a non-player screen that runs the game (D18)                                                                                                            |
-| Q8  | Who starts round 2 and round 3?                                               | **Answered 2026-10-26:** rotation continues; in practice the player who emptied the pile continues first (D17)                                                                                         |
-| Q9  | Do rounds have different clue rules?                                          | **Answered 2026-10-26:** R1 describe without saying any of the words, R2 charades (no talking), R3 one word (§1.2)                                                                                     |
-| Q10 | What does a tie look like at the end?                                         | **Answered 2026-10-26:** a tie is a tie: no tiebreaker, the tied teams are shown as tied                                                                                                               |
-| Q11 | What if the pile runs out with almost no time left (say under 1 s)?           | Carry over whatever is left, however small; the GM can `addTime` before the turn starts ✅ built this way                                                                                              |
-| Q12 | Can players choose their own teams?                                           | **Answered 2026-10-27:** no self-selection. The wheel assigns everyone; only the GM can correct membership (D28).                                                                                      |
-| Q13 | How are late arrivals handled while teams are being picked?                   | **Answered 2026-10-27:** until teams are final they join the pool of unplaced players (the wheel draws them, or the GM places them or spins for the rest); after that they wait for the GM (D34, D31). |
-| Q14 | Should the timer auto-pause the instant the active player's phone goes quiet? | Not built: the turn ends when they're marked inactive (20 s); the GM can pause manually (D31)                                                                                                          |
+| #   | Question                                                                      | Current assumption / answer                                                                                                                                                                                      |
+| --- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | When an inactive player's turn comes up, does their **team** still play?      | Yes: the next active teammate goes; the team is skipped only if nobody on it is active                                                                                                                           |
+| Q2  | Does the original game master get GM back when they rejoin?                   | No. GM stays with whoever it passed to; the GM can hand it back with "Make game master" ✅ built this way                                                                                                        |
+| Q3  | How many rounds, and how do they work?                                        | **Answered 2026-10-26:** 3 rounds with the same mechanics and the same full pile each round (§1.2)                                                                                                               |
+| Q4  | When the pile empties mid-turn, what happens to the time left?                | **Answered 2026-10-26:** the timer stops; the same player keeps going into the next round with the time that was left (D17)                                                                                      |
+| Q5  | Are kicked players banned from rejoining?                                     | No; after team confirmation they land in the waiting room, so the GM controls it                                                                                                                                 |
+| Q6  | How are the backdoors triggered?                                              | **Partly answered 2026-10-28:** they must be very hard or impossible to trigger for anyone who doesn't already know how, and still server-side and role-gated. The trigger itself is undecided. Not built (§1.4) |
+| Q7  | Does the TV screen join as a player or a spectator?                           | **Answered 2026-10-26:** the TV _is_ the host: a non-player screen that runs the game (D18)                                                                                                                      |
+| Q8  | Who starts round 2 and round 3?                                               | **Answered 2026-10-26:** rotation continues; in practice the player who emptied the pile continues first (D17)                                                                                                   |
+| Q9  | Do rounds have different clue rules?                                          | **Answered 2026-10-26:** R1 describe without saying any of the words, R2 charades (no talking), R3 one word (§1.2)                                                                                               |
+| Q10 | What does a tie look like at the end?                                         | **Answered 2026-10-26:** a tie is a tie: no tiebreaker, the tied teams are shown as tied                                                                                                                         |
+| Q11 | What if the pile runs out with almost no time left (say under 1 s)?           | Carry over whatever is left, however small; the GM can `addTime` before the turn starts ✅ built this way                                                                                                        |
+| Q12 | Can players choose their own teams?                                           | **Answered 2026-10-27:** no self-selection. The wheel assigns everyone; only the GM can correct membership (D28).                                                                                                |
+| Q13 | How are late arrivals handled while teams are being picked?                   | **Answered 2026-10-27:** until teams are final they join the pool of unplaced players (the wheel draws them, or the GM places them or spins for the rest); after that they wait for the GM (D34, D31).           |
+| Q14 | Should the timer auto-pause the instant the active player's phone goes quiet? | Not built: the turn ends when they're marked inactive (20 s); the GM can pause manually (D31)                                                                                                                    |
 
 ## Appendix: decision template
 

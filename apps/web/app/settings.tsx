@@ -80,6 +80,32 @@ export function Settings({
           </div>
         );
       })}
+      <div className="setting-row">
+        <span className="setting-index eyebrow">0{FIELDS.length + 1}</span>
+        <div className="setting-copy">
+          <label htmlFor="setting-showGuessed">Show guessed phrases</label>
+          {!compact && <p>List them for everyone after each turn.</p>}
+        </div>
+        {onChange ? (
+          <button
+            type="button"
+            role="switch"
+            id="setting-showGuessed"
+            aria-checked={config.showGuessed}
+            className="setting-switch"
+            onClick={() => onChange({ showGuessed: !config.showGuessed })}
+          >
+            <span className="setting-switch-knob" aria-hidden />
+            <span className="setting-switch-text">
+              {config.showGuessed ? "On" : "Off"}
+            </span>
+          </button>
+        ) : (
+          <span className="setting-value">
+            {config.showGuessed ? "On" : "Off"}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -107,6 +107,11 @@ function TvFooter({ view }: { view: LobbyView }) {
         <li>
           <strong>3</strong> rounds
         </li>
+        {config.showGuessed && (
+          <li>
+            guessed phrases <strong>shown</strong>
+          </li>
+        )}
       </ul>
       <p className="tv-gm">
         {gm ? (

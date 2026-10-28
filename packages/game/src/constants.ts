@@ -8,10 +8,10 @@ export const PARTY = "lobby";
 export const CODE_LENGTH = 4;
 
 /** Bump on any breaking change to client/server messages or views (§6.8). */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** Bump whenever the persisted LobbyState shape changes (§6.5). */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /** Fixed by the game rules (§1.2). */
 export const ROUNDS = 3;

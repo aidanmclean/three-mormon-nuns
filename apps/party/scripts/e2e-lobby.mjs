@@ -4,7 +4,7 @@
 // Takes ~40 s because it waits for a silent client to be marked inactive.
 
 const HOST = process.env.PARTY_HOST ?? "localhost:8787";
-const V = 7; // keep in sync with PROTOCOL_VERSION in packages/game
+const V = 8; // keep in sync with PROTOCOL_VERSION in packages/game
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const code = Array.from(
   { length: 4 },
@@ -129,6 +129,7 @@ screen.send({
     phrasesPerPlayer: 4,
     maxWordsPerPhrase: 3,
     profanityFilter: "off",
+    showGuessed: false,
   },
 });
 const screenJoined = await screen.waitFor(

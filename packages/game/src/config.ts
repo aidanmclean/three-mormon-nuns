@@ -19,13 +19,16 @@ export const ConfigSchema = z.strictObject({
   phrasesPerPlayer: int(CONFIG_RANGES.phrasesPerPlayer),
   maxWordsPerPhrase: int(CONFIG_RANGES.maxWordsPerPhrase),
   profanityFilter: z.enum(["off", "names", "phrases", "both"]),
+  /** List the guessed phrases to the whole room after each turn (D47). */
+  showGuessed: z.boolean(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
 
 /**
  * Defaults follow the house rules: 2 teams, 3 phrases of up to 3 words each,
- * 1-minute turns. There are no special player roles or phrase moderation.
+ * 1-minute turns, guessed phrases kept off the shared screen (D47). Cavan
+ * is a role, not a setting (D30).
  */
 export const DEFAULT_CONFIG: Config = {
   roundLengthSec: 60,
@@ -34,4 +37,5 @@ export const DEFAULT_CONFIG: Config = {
   phrasesPerPlayer: 3,
   maxWordsPerPhrase: 3,
   profanityFilter: "off",
+  showGuessed: false,
 };

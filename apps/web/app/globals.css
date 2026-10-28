@@ -146,6 +146,55 @@ button:disabled {
   font-size: 13px;
   font-weight: 600;
 }
+/* An on/off house rule (D47): a paper track with an ink knob that slides
+   right and turns the track yellow when on. Sized like .setting-select. */
+.setting-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 128px;
+  padding: 9px 12px;
+  border: 2px solid var(--foreground);
+  border-radius: 2px;
+  background: var(--background);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.15s;
+}
+.setting-switch:focus-visible {
+  box-shadow: 3px 3px 0 var(--blue);
+}
+.setting-switch-knob {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: 30%;
+  border: 2px solid var(--foreground);
+  background: var(--line);
+  transition:
+    left 0.15s,
+    background-color 0.15s;
+}
+.setting-switch[aria-checked="true"] {
+  justify-content: flex-start;
+  background: var(--yellow);
+}
+.setting-switch[aria-checked="true"] .setting-switch-knob {
+  left: calc(70% - 4px);
+  background: var(--foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+  .setting-switch,
+  .setting-switch-knob {
+    transition: none;
+  }
+}
 .form-error {
   color: #a22c23;
   font-size: 13px;
@@ -178,7 +227,8 @@ button:disabled {
 .settings-compact label {
   font-size: 13px;
 }
-.settings-compact .setting-select {
+.settings-compact .setting-select,
+.settings-compact .setting-switch {
   font-size: 11px;
   min-width: 105px;
 }
@@ -240,7 +290,8 @@ button:disabled {
   .setting-copy p {
     font-size: 10px;
   }
-  .setting-select {
+  .setting-select,
+  .setting-switch {
     min-width: 105px;
     padding: 8px 6px;
     font-size: 11px;
@@ -491,6 +542,61 @@ button:disabled {
   background: #fffaf0;
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+
+/* Review with the phrases hidden (D47): one stamped check per point. */
+.tally {
+  --stamp: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--stamp) * 0.3);
+}
+.tally-marks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--stamp) * 0.2);
+  max-width: calc(var(--stamp) * 7.4);
+}
+.tally-mark {
+  display: grid;
+  place-items: center;
+  width: var(--stamp);
+  height: var(--stamp);
+  border: calc(var(--stamp) * 0.06) solid var(--ink);
+  background: var(--yellow);
+  box-shadow: calc(var(--stamp) * 0.07) calc(var(--stamp) * 0.07) 0 var(--ink);
+  font-size: calc(var(--stamp) * 0.55);
+  font-weight: 700;
+  line-height: 1;
+  transform: rotate(-4deg);
+  animation: tally-stamp 0.3s calc(var(--i) * 70ms) both;
+}
+.tally-mark:nth-child(even) {
+  transform: rotate(3deg);
+}
+.tally-more {
+  width: auto;
+  min-width: var(--stamp);
+  padding: 0 calc(var(--stamp) * 0.15);
+  background: var(--background);
+  font-size: calc(var(--stamp) * 0.45);
+}
+.tally-note {
+  font-size: calc(var(--stamp) * 0.36);
+  color: var(--muted);
+}
+@keyframes tally-stamp {
+  from {
+    opacity: 0;
+    scale: 1.8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tally-mark {
+    animation: none;
+  }
 }
 
 /* TV */
@@ -1227,7 +1333,8 @@ html:has(.m-app) body {
   font-size: 16px;
   font-weight: 700;
 }
-.m-rules .setting-select {
+.m-rules .setting-select,
+.m-rules .setting-switch {
   min-height: 48px;
   font-size: 17px;
 }
@@ -2572,6 +2679,12 @@ html:has(.m-app) body {
   border-width: calc(var(--u) * 0.2);
   font-size: calc(var(--u) * 2.4);
 }
+.tv .tally-big {
+  --stamp: calc(var(--u) * 4.4);
+}
+.tv .tally-note {
+  color: #4d473c;
+}
 .tv .scoreboard {
   flex: none;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
@@ -3037,7 +3150,8 @@ html:has(.m-app) body {
 .setup-panel .setting-copy p {
   font-size: 14px;
 }
-.setup-panel .setting-select {
+.setup-panel .setting-select,
+.setup-panel .setting-switch {
   min-width: 150px;
   min-height: 48px;
   font-size: 16px;
@@ -3282,7 +3396,8 @@ html:has(.m-app) body {
   .setup-panel .settings-list {
     padding: 0 16px;
   }
-  .setup-panel .setting-select {
+  .setup-panel .setting-select,
+  .setup-panel .setting-switch {
     min-width: 128px;
   }
   .setup-submit {

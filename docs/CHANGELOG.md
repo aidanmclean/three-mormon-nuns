@@ -4,6 +4,14 @@ Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE
 
 ## 2026-10-28
 
+- **Added:** a **Show guessed phrases** house rule, off by default, on the host setup page and in the GM's lobby rules ([D47](./ARCHITECTURE.md#d47-guessed-phrases-are-hidden-after-a-turn-unless-a-house-rule-shows-them)).
+  - **On:** review lists the turn's guessed phrases on the TV and every phone, as before.
+  - **Off:** the server sends the list only to the player who described. Everyone else, the TV included, sees one yellow stamp per point (up to 12, then "+N") and "The phrases stay secret".
+  - Protocol 8, schema 10: deploy party before web; stored lobbies reset. The e2e scripts' protocol constant is now 8.
+- **Changed:** backdoors (not built yet) must be very hard or impossible to trigger for anyone who doesn't already know how. Recorded in Q6, §1.4 and §6.9.
+- **Fixed (docs):**
+  - §4 listed protocol 6 and schema 8; the code has 8 and 10 (it was 7 and 9 before this change).
+  - §8 still described **Go next**, which D41 removed.
 - **Changed:** the start page's tagline is picked at random on every visit from `TAGLINES` at the top of `apps/web/app/page.tsx`. The rest of the page stays prerendered ([D46](./ARCHITECTURE.md#d46-the-start-page-picks-its-tagline-at-random-on-every-visit)).
 - **Added:** a joke tagline under the logo on the start page ("Bad clues. Worse acting. Still friends (probably)."). Change it with `TAGLINE` at the top of `apps/web/app/page.tsx`. An **OR** badge now sits between **Join a game** and **Host a game** ([D45](./ARCHITECTURE.md#d45-a-joke-tagline-under-the-logo-and-an-or-between-the-start-pages-cards)).
 - **Changed:** one logo everywhere, on the start page, every site page, the phone's top bar and the TV: yellow 3, blue MORMON, red NUNS, yellow spark. The host setup page's logo no longer differs from the start page ([D44](./ARCHITECTURE.md#d44-one-logo-a-plain-start-page-a-rules-page-a-cleaner-host-setup)).

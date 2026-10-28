@@ -10,6 +10,7 @@ import {
   Podium,
   playerName,
   Scoreboard,
+  TurnGuesses,
   teamName,
   useTurnClock,
   winnerText,
@@ -262,7 +263,7 @@ export function GameScreen({
           <h1 className="m-big">
             {turn.points} for {upTeam}
           </h1>
-          <GuessedList phrases={turn.guessed} />
+          <TurnGuesses turn={turn} />
           {mine && (
             <div className="m-dispute">
               <p className="m-note">
@@ -423,20 +424,6 @@ function GmTools({ view, send }: { view: LobbyView; send: Send }) {
       </Fold>
       <ManagePlayers view={view} send={send} />
     </>
-  );
-}
-
-function GuessedList({ phrases }: { phrases: string[] | null }) {
-  if (!phrases?.length) return <p className="m-sub">Nothing guessed.</p>;
-  return (
-    <ol className="m-guessed">
-      {phrases.map((p) => (
-        // Phrases are unique within a lobby, so the text is a stable key.
-        <li key={p}>
-          <Icon name="check" /> {p}
-        </li>
-      ))}
-    </ol>
   );
 }
 

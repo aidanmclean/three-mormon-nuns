@@ -33,8 +33,8 @@ function scoringTurn(l: L, gm: string, n: number) {
   ok(l.act(gm, { type: "proceed" }));
 }
 
-describe("skipping a turn (D35)", () => {
-  it("passes the turn to the next teammate with the same time, then rotation carries on", () => {
+describe("skipping a turn swaps with the next teammate (D41)", () => {
+  it("B plays now with the same time, A takes the team's next turn, then the rotation carries on", () => {
     const { l, gm } = startedGame({}, SIX);
     const [a, b] = rosters(l.state);
     expect(turn(l.state).playerId).toBe(a?.[0]);
@@ -45,94 +45,42 @@ describe("skipping a turn (D35)", () => {
       teamId: l.state.teamOrder[0],
       remainingMs: 70_000,
     });
-    expect(l.state.game?.skipped).toEqual([a?.[0]]);
-    expect(viewFor(l.state, null).game?.skipped).toEqual([a?.[0]]);
+    expect(l.state.game?.owed).toEqual([a?.[0]]);
+    expect(viewFor(l.state, null).game?.owed).toEqual([a?.[0]]);
     expectValid(l.state);
 
     const order: (string | undefined)[] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       order.push(turn(l.state).playerId);
       emptyTurn(l, gm);
     }
-    expect(order).toEqual([a?.[1], b?.[0], a?.[2]]);
+    // A1 and A0 swapped; everything after is the normal rotation.
+    expect(order).toEqual([a?.[1], b?.[0], a?.[0], b?.[1], a?.[2], b?.[2]]);
+    expect(l.state.game?.owed).toEqual([]);
     expectValid(l.state);
   });
 
-  it("sends a skipped player up for their team's next turn without losing anyone's place", () => {
-    const { l, gm } = startedGame({}, SIX);
-    const [a, b] = rosters(l.state);
-    ok(l.act(gm, { type: "skipTurn" }));
-    emptyTurn(l, gm); // a1 plays instead
-    expect(turn(l.state).playerId).toBe(b?.[0]);
-    ok(l.act(gm, { type: "upNext", playerId: a?.[0] ?? "" }));
-    expect(l.state.game).toMatchObject({ skipped: [], upNext: a?.[0] });
-    // b0 still plays now: it's their team's turn.
-    expect(turn(l.state).playerId).toBe(b?.[0]);
-
-    const order: (string | undefined)[] = [];
-    for (let i = 0; i < 4; i++) {
-      order.push(turn(l.state).playerId);
-      emptyTurn(l, gm);
-    }
-    // a0 makes up their turn, then team A carries on with a2.
-    expect(order).toEqual([b?.[0], a?.[0], b?.[1], a?.[2]]);
-    expect(l.state.game?.upNext).toBeNull();
-    expectValid(l.state);
-  });
-
-  it("swaps a sent-up player in straight away when their team is up", () => {
-    const { l, gm } = startedGame({}, SIX);
-    const [a, b] = rosters(l.state);
-    ok(l.act(gm, { type: "skipTurn" }));
-    expect(turn(l.state).playerId).toBe(a?.[1]);
-    // They're back from the washroom already.
-    ok(l.act(gm, { type: "upNext", playerId: a?.[0] ?? "" }));
-    expect(turn(l.state).playerId).toBe(a?.[0]);
-    expectValid(l.state);
-
-    const order: (string | undefined)[] = [];
-    for (let i = 0; i < 4; i++) {
-      order.push(turn(l.state).playerId);
-      emptyTurn(l, gm);
-    }
-    // a1 was bumped but keeps their place: they're next for team A.
-    expect(order).toEqual([a?.[0], b?.[0], a?.[1], b?.[1]]);
-    expectValid(l.state);
-  });
-
-  it("gives the turn to the next team if nobody else on the team is connected", () => {
+  it("never hands the turn to the other team", () => {
     const { l, gm } = startedGame({}, ["Alex", "Blair", "Casey", "Drew"]);
-    const [a, b] = rosters(l.state);
-    ok(l.act(gm, { type: "addTime", ms: 20_000 }));
+    const [a] = rosters(l.state);
+    expect(a?.[1]).not.toBe(gm);
     ok(
       l.act(null, { type: "_presence", active: [], inactive: [a?.[1] ?? ""] }),
     );
-    expect(a?.[1]).not.toBe(gm);
-    ok(l.act(gm, { type: "skipTurn" }));
-    expect(turn(l.state)).toMatchObject({
-      playerId: b?.[0],
-      teamId: l.state.teamOrder[1],
-      remainingMs: 60_000,
-      carried: false,
-    });
-    expectValid(l.state);
-  });
-
-  it("refuses when nobody else can play, and checks who and when", () => {
-    const { l, gm } = startedGame({}, ["Alex", "Blair"]);
-    const other = Object.keys(l.state.players).find((id) => id !== gm) ?? "";
-    expect(l.act(other, { type: "skipTurn" })).toMatchObject({
-      code: "FORBIDDEN",
-    });
-    expect(l.act(gm, { type: "upNext", playerId: other })).toMatchObject({
-      ok: false,
-      code: "INVALID",
-    });
-    expect(turn(l.state).playerId).toBe(gm);
-    ok(l.act(null, { type: "_presence", active: [], inactive: [other] }));
+    const before = turn(l.state).playerId;
     expect(l.act(gm, { type: "skipTurn" })).toMatchObject({
       ok: false,
       code: "INVALID",
+    });
+    expect(turn(l.state).playerId).toBe(before);
+    expectValid(l.state);
+  });
+
+  it("only the GM can skip, and only before the turn starts", () => {
+    const { l, gm } = startedGame({}, SIX);
+    const other = Object.keys(l.state.players).find((id) => id !== gm) ?? "";
+    expect(l.act(other, { type: "skipTurn" })).toMatchObject({
+      code: "FORBIDDEN",
     });
     startTurn(l, gm);
     expect(l.act(gm, { type: "skipTurn" })).toMatchObject({
@@ -141,16 +89,38 @@ describe("skipping a turn (D35)", () => {
     expectValid(l.state);
   });
 
-  it("forgets a skipped player who gets kicked", () => {
+  it("waits for an owed player who's away, and they go once they're back", () => {
+    const { l, gm } = startedGame({}, SIX);
+    const [a] = rosters(l.state);
+    const away = a?.[1] ?? "";
+    expect(turn(l.state).playerId).toBe(gm);
+    emptyTurn(l, gm); // a0 (the GM) plays; b0 is up
+    emptyTurn(l, gm); // b0 plays; a1 is up
+    expect(turn(l.state).playerId).toBe(away);
+    ok(l.act(gm, { type: "skipTurn" })); // a1 swaps with a2
+    expect(turn(l.state).playerId).toBe(a?.[2]);
+    emptyTurn(l, gm); // a2 plays
+    ok(l.act(null, { type: "_presence", active: [], inactive: [away] }));
+    emptyTurn(l, gm); // b1 plays; a1 is away, so the rotation goes on
+    expect(turn(l.state).playerId).toBe(a?.[0]);
+    expect(l.state.game?.owed).toEqual([away]);
+    emptyTurn(l, gm);
+    ok(l.act(null, { type: "_presence", active: [away], inactive: [] }));
+    emptyTurn(l, gm); // b2 plays
+    expect(turn(l.state).playerId).toBe(away);
+    expectValid(l.state);
+  });
+
+  it("forgets an owed player who gets kicked", () => {
     const { l, gm } = startedGame({}, SIX);
     const [a] = rosters(l.state);
     expect(turn(l.state).playerId).toBe(gm);
-    ok(l.act(gm, { type: "skipTurn" })); // the GM passes on their own turn
-    ok(l.act(gm, { type: "skipTurn" })); // and so does a1
-    expect(l.state.game?.skipped).toEqual([a?.[0], a?.[1]]);
-    expect(turn(l.state).playerId).toBe(a?.[2]);
+    emptyTurn(l, gm);
+    emptyTurn(l, gm);
+    ok(l.act(gm, { type: "skipTurn" }));
+    expect(l.state.game?.owed).toEqual([a?.[1]]);
     ok(l.act(gm, { type: "kick", playerId: a?.[1] ?? "" }));
-    expect(l.state.game?.skipped).toEqual([a?.[0]]);
+    expect(l.state.game?.owed).toEqual([]);
     expectValid(l.state);
   });
 });

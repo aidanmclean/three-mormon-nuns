@@ -314,6 +314,7 @@ export function useLobby(
     connected,
     nameError,
     notice,
+    dismissNotice: () => setNotice(null),
     goneReason,
     connectionIssue:
       startupError ??

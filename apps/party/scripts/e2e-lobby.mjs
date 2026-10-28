@@ -4,7 +4,7 @@
 // Takes ~40 s because it waits for a silent client to be marked inactive.
 
 const HOST = process.env.PARTY_HOST ?? "localhost:8787";
-const V = 6; // keep in sync with PROTOCOL_VERSION in packages/game
+const V = 7; // keep in sync with PROTOCOL_VERSION in packages/game
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const code = Array.from(
   { length: 4 },

@@ -69,9 +69,8 @@ export interface GameView {
   canRestartPrevious: boolean;
   /** Teams with the top score once the game is over; more than one is a tie. */
   winners: TeamId[];
-  /** Skipped players still owed a turn, and the one sent up next (D35). */
-  skipped: PlayerId[];
-  upNext: PlayerId | null;
+  /** Players who swapped and take their team's next turn (D41). */
+  owed: PlayerId[];
   /**
    * Once the game is over: everyone who placed 1st–3rd by phrases guessed
    * while they described (D36). Ties share a place, so places can repeat.
@@ -106,23 +105,29 @@ export function viewFor(state: LobbyState, viewer: PlayerId | null): LobbyView {
   const isGm = viewer !== null && viewer === roles.gamemasterId;
   const players = Object.values(state.players)
     .sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id))
-    .map(
-      (p): PlayerView => ({
+    .map((p): PlayerView => {
+      // Only the GM and Cavan themselves know who Cavan is (D40). Everyone
+      // else, the TV included, sees unapproved phrases as not written yet.
+      const knows = isGm || viewer === p.id;
+      const approvedCount = phrases.filter(
+        (ph) => ph.authorId === p.id && ph.status === "approved",
+      ).length;
+      return {
         id: p.id,
         name: p.name,
         status: p.status,
         waiting: p.waiting,
         teamId: p.teamId,
         isGamemaster: p.id === roles.gamemasterId,
-        isCavan: p.id === roles.cavanId,
-        phraseCount: phrases.filter(
-          (ph) => ph.authorId === p.id && ph.status !== "rejected",
-        ).length,
-        approvedCount: phrases.filter(
-          (ph) => ph.authorId === p.id && ph.status === "approved",
-        ).length,
-      }),
-    );
+        isCavan: knows && p.id === roles.cavanId,
+        phraseCount: knows
+          ? phrases.filter(
+              (ph) => ph.authorId === p.id && ph.status !== "rejected",
+            ).length
+          : approvedCount,
+        approvedCount,
+      };
+    });
   return {
     code: state.code,
     phase: state.phase,
@@ -235,8 +240,7 @@ function gameView(
       state.phase === "results"
         ? state.teamOrder.filter((id) => (game.scores[id] ?? 0) === top)
         : [],
-    skipped: [...game.skipped],
-    upNext: game.upNext,
+    owed: [...game.owed],
     leaders: state.phase === "results" ? leaders(state, game.playerScores) : [],
   };
 }

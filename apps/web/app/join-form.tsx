@@ -3,6 +3,7 @@
 import { CODE_LENGTH, normalizeCode } from "@tmn/game";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Icon } from "./icons";
 
 export function JoinForm() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export function JoinForm() {
         disabled={code.length !== CODE_LENGTH}
         className="btn-primary"
       >
-        Join game <span aria-hidden>→</span>
+        Join game <Icon name="arrowRight" />
       </button>
     </form>
   );

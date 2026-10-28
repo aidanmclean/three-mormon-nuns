@@ -238,15 +238,10 @@ function checkGame(state: LobbyState, err: (msg: string) => void) {
   if (new Set(game.acknowledged).size !== game.acknowledged.length)
     err("duplicate acknowledgement");
   if (
-    new Set(game.skipped).size !== game.skipped.length ||
-    game.skipped.some((id) => !state.players[id])
+    new Set(game.owed).size !== game.owed.length ||
+    game.owed.some((id) => !state.players[id])
   )
-    err("invalid skipped list");
-  if (
-    game.upNext !== null &&
-    (!state.players[game.upNext] || game.skipped.includes(game.upNext))
-  )
-    err("invalid up-next player");
+    err("invalid owed list");
   if (
     Object.entries(game.playerScores).some(
       ([id, n]) => !state.players[id] || !Number.isInteger(n) || n < 0,

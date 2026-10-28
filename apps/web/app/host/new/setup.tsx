@@ -4,6 +4,7 @@ import { ConfigSchema, DEFAULT_CONFIG, randomCode } from "@tmn/game";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Masthead, NunIllustration, Steps } from "@/app/brand";
+import { Icon } from "@/app/icons";
 import { Settings } from "@/app/settings";
 import { devicePath, saveScreen } from "@/lib/session";
 
@@ -47,7 +48,7 @@ export function HostSetup() {
                   setError(null);
                 }}
               >
-                Reset defaults ↺
+                Reset defaults <Icon name="undo" />
               </button>
             </div>
             <Settings
@@ -65,7 +66,7 @@ export function HostSetup() {
               )}
               <button type="submit" className="btn-primary" disabled={creating}>
                 {creating ? "Creating…" : "Create lobby"}
-                <span aria-hidden>↗</span>
+                <Icon name="arrowUpRight" />
               </button>
             </div>
           </section>
@@ -83,7 +84,10 @@ export function HostSetup() {
             </p>
             <div className="aside-note">
               <strong>Three rounds</strong>
-              <span>Describe it → Charades → One word</span>
+              <span>
+                Describe it <Icon name="arrowRight" /> Charades{" "}
+                <Icon name="arrowRight" /> One word
+              </span>
             </div>
           </aside>
         </form>

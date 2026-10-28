@@ -86,10 +86,11 @@ export interface Game {
   previous: GameSnapshot | null;
   /** Phrases each player got their team to guess while describing (D36). */
   playerScores: Record<PlayerId, number>;
-  /** Players the GM skipped who haven't had a turn since (D35). */
-  skipped: PlayerId[];
-  /** A skipped player the GM sent up: they take their team's next turn (D35). */
-  upNext: PlayerId | null;
+  /**
+   * Players who swapped their turn with a teammate and take their team's
+   * next turn, oldest first (D41).
+   */
+  owed: PlayerId[];
 }
 
 /** How teams are made: the server wheel, or the GM placing everyone (D32). */

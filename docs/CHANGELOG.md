@@ -2,6 +2,55 @@
 
 Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE.md](./ARCHITECTURE.md#3-decision-log)) where there is one. Every change gets an entry; see [AGENTS.md](../AGENTS.md).
 
+## 2026-10-28
+
+- **Fixed:** messages to players were an invisible box with invisible text (their colours came from a variable that only existed inside the app). They're now a dark card with light text and a warning icon, under the top bar. Tap to dismiss, or it clears after 4 seconds ([D43](./ARCHITECTURE.md#d43-player-messages-are-a-dark-dismissable-toast-impossible-actions-are-disabled-instead)).
+- **Changed:** **Skip** is disabled, with one line saying why, when nobody else on the team is connected, instead of failing with a message.
+- **Fixed:** the last emoji-capable symbols are gone: the logo star, the arrows on **Host a new game**, **Join game** and **Create lobby**, and **Reset defaults** now use drawn icons.
+- **Changed:** skipping a turn keeps it on the same team. The next teammate goes now, and the skipped player goes on the team's next turn: if A is up before B, skipping A makes it B's turn, then A's. **Go next** is gone; End turn moves play to the next team ([D41](./ARCHITECTURE.md#d41-skipping-a-turn-swaps-the-player-with-their-next-teammate)). Protocol 7, schema 9: deploy party before web; stored lobbies reset.
+- **Fixed:** TV text always fits ([D42](./ARCHITECTURE.md#d42-tv-panels-shrink-their-content-to-fit-each-team-has-one-colour-everywhere)).
+  - The stage (clock, "Paused", round intro, results), the wheel panel and team lists shrink to fit instead of clipping in a short window.
+  - The TV unit has no minimum size any more.
+- **Fixed:** podium medals fit on every step. Step heights now scale with the medal, and players tied for a place share one points line.
+- **Changed:** TV team lists wrap into two or three columns for big teams, and names are never cut off.
+- **Changed:** the phone team screen.
+  - Your team is listed first.
+  - Captains get a big "Name your team" card.
+  - Everyone sees who is naming each team.
+  - While the wheel spins, teams show as compact name chips.
+- **Changed:** each team has one colour everywhere: team cards, TV columns, your team chip, the GM's team buttons and the scoreboard. The team that's up is lifted instead of turning cyan.
+- **Fixed:** the TV footer says "1 phrase each", not "1 phrases each".
+- **Verified:**
+  - Firefox at 1920×1080, 1366×650, 1280×600 and 1000×450 with 15 players with 16-character names, from teams to results: no panel overflowed and every medal sat on its step.
+  - The GM skipping from a phone: Frankie skipped → Casey (same team) → the other team → Frankie.
+- **Changed:** phones redesigned for play ([D39](./ARCHITECTURE.md#d39-phones-get-an-app-style-layout-drawn-icons-replace-emoji)).
+  - A sticky top bar (phase, room code) and a "you" strip.
+  - One big action in a thumb-reach dock: Everyone's in, Start writing, Got it, Start turn, Next turn, Play again.
+  - House rules, everyone's progress, and the GM's players and turn options fold away.
+  - Big inputs, 48–64px buttons, and avatars with role icons to the right of names.
+  - The GM's per-player menus open one at a time.
+- **Changed:** emoji are gone: line icons, drawn emote stickers, and drawn podium medals.
+- **Changed:** TV lobby tiles size to each full name and wrap into rows flush to both edges, with player colours mixed per player. A time bar drains under the in-game clock.
+- **Changed:** names are capped at 16 characters.
+- **Changed:** only the GM can tell who Cavan is. No magnifier, legend, explainer or "being checked" counts for anyone else or the TV ([D40](./ARCHITECTURE.md#d40-only-the-gm-and-cavan-can-tell-who-cavan-is)). Cavan's phone says "Alex checks every phrase you write".
+- **Fixed:**
+  - The spinning wheel no longer adds scrollbars on phones.
+  - Phones open at their natural zoom (viewport export).
+  - The wheel's rotating square is clipped to its circle.
+- **Verified:**
+  - Two UI-driven phones (390×844), the TV and scripted players, from join to results: every tap went through the real buttons, and nothing scrolls sideways.
+  - A 16-player TV lobby with long names at 1080p and 720p.
+  - 95 tests; lint, typecheck and build pass.
+- **Changed:** the host screen is laid out for a TV ([D38](./ARCHITECTURE.md#d38-the-host-screen-has-its-own-tv-layout-sized-from-the-screen)).
+  - Everything scales with the screen, and nothing scrolls.
+  - A big phase label in the header, and a join chip in every phase.
+  - A numbered how-to-join panel and a slanted comic player count (e.g. 7 / 20).
+  - Bigger player tiles and team columns; writing progress as dots.
+  - House rules as large chips, with the game master named.
+  - Larger in-game text, clock, scoreboard and podium.
+  - The tiny progress strip and labels are gone.
+- **Verified:** headless Firefox at 1920×1080 and 1280×720, every phase from an empty lobby to results, 0–16 players, nothing off screen. 95 tests; lint, typecheck and build pass.
+
 ## 2026-10-27
 
 - **Added:** skip a turn and send someone up next ([D35](./ARCHITECTURE.md#d35-the-gm-can-skip-whoever-is-up-and-send-a-skipped-player-up-next)).

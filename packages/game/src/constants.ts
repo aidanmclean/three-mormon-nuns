@@ -8,10 +8,10 @@ export const PARTY = "lobby";
 export const CODE_LENGTH = 4;
 
 /** Bump on any breaking change to client/server messages or views (§6.8). */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Bump whenever the persisted LobbyState shape changes (§6.5). */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** Fixed by the game rules (§1.2). */
 export const ROUNDS = 3;
@@ -33,7 +33,8 @@ export const ROUND_RULES = [
 ] as const satisfies readonly { title: string; rules: string }[];
 
 export const MAX_MESSAGE_BYTES = 4096;
-export const NAME_MAX_LEN = 20;
+/** Short enough that every name fits on the TV and a phone row (D39). */
+export const NAME_MAX_LEN = 16;
 export const PHRASE_MAX_LEN = 80;
 export const WHEEL_SPIN_MS = 2_600;
 export const WHEEL_REVEAL_MS = 900;

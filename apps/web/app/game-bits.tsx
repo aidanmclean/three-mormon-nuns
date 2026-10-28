@@ -2,17 +2,10 @@
 
 import type { EmoteKind, LobbyView, TurnView } from "@tmn/game";
 import { type CSSProperties, useEffect, useState } from "react";
+import { EmoteIcon, Medal } from "./icons";
+import { teamColor } from "./palette";
 
 // Pieces shared by the phone game screen and the TV game board (D31).
-
-export const EMOTE_ICONS: Record<EmoteKind, string> = {
-  laugh: "😂",
-  clap: "👏",
-  fire: "🔥",
-  thumbsUp: "👍",
-  thumbsDown: "👎",
-  tomato: "🍅",
-};
 
 export const EMOTE_LABELS: Record<EmoteKind, string> = {
   laugh: "Laugh",
@@ -76,30 +69,17 @@ export function Scoreboard({
       className={`scoreboard ${big ? "scoreboard-big" : ""}`}
       aria-label="Scores"
     >
-      {view.teams.map((team) => (
+      {view.teams.map((team, i) => (
         <li
           key={team.id}
           className={`score-team ${team.id === playing && view.phase !== "results" ? "playing" : ""} ${game.winners.includes(team.id) ? "winner" : ""}`}
+          style={{ "--team": teamColor(i) } as CSSProperties}
         >
           <span>{team.name}</span>
           <strong>{game.scores[team.id] ?? 0}</strong>
         </li>
       ))}
     </ol>
-  );
-}
-
-export function RoundBanner({ view }: { view: LobbyView }) {
-  const game = view.game;
-  if (!game || view.phase === "results") return null;
-  return (
-    <div className="round-banner">
-      <span className="badge">ROUND {game.round} OF 3</span>
-      <strong>{game.roundTitle}</strong>
-      <span className="round-pile">
-        {game.pileCount} / {game.totalPhrases} left
-      </span>
-    </div>
   );
 }
 
@@ -128,7 +108,6 @@ export function winnerText(view: LobbyView): string {
 }
 
 /** Floating reactions over the whole TV screen, in every phase (D31). */
-const MEDALS = { 1: "🥇", 2: "🥈", 3: "🥉" } as const;
 const PLACES = { 1: "First", 2: "Second", 3: "Third" } as const;
 
 /**
@@ -152,18 +131,26 @@ export function Podium({
           const here = leaders.filter((l) => l.place === place);
           return (
             <li key={place} className={`podium-step place-${place}`}>
+              {/* A tie shares one points line, so a crowded step stays short. */}
               <div className="podium-names">
                 {here.map((l) => (
-                  <span key={l.playerId} className="podium-name">
+                  <span
+                    key={l.playerId}
+                    className={`podium-name ${here.length > 2 ? "podium-name-small" : ""}`}
+                  >
                     {playerName(view, l.playerId)}
-                    <small className="podium-points">
-                      {l.points} {l.points === 1 ? "phrase" : "phrases"}
-                    </small>
                   </span>
                 ))}
+                {here[0] && (
+                  <small className="podium-points">
+                    {here[0].points}{" "}
+                    {here[0].points === 1 ? "phrase" : "phrases"}
+                    {here.length > 1 ? " each" : ""}
+                  </small>
+                )}
               </div>
               <div className="podium-block">
-                <span aria-hidden>{MEDALS[place]}</span>
+                <Medal place={place} />
                 <span className="sr-only">{PLACES[place]} place</span>
               </div>
             </li>
@@ -189,10 +176,11 @@ function emoteStyle(seed: number) {
   return {
     "--x": `${between(seed, 1, 6, 94)}%`,
     "--y": `${between(seed, 2, 22, 86)}%`,
-    "--dx": `${between(seed, 3, -90, 90)}px`,
+    "--dx": `${between(seed, 3, -5, 5)}vw`,
     "--rise": `${between(seed, 4, 8, 24)}vh`,
     "--rot": `${between(seed, 5, -28, 28)}deg`,
-    "--size": `${between(seed, 6, 48, 96)}px`,
+    // A multiple of the TV unit, so emotes scale with the screen (D38).
+    "--size": between(seed, 6, 2.6, 5).toFixed(2),
     "--dur": `${between(seed, 7, 2.4, 3.3)}s`,
   } as CSSProperties;
 }
@@ -206,7 +194,7 @@ export function EmoteLayer({
     <div className="emote-layer" aria-hidden>
       {emotes.map((e) => (
         <span key={e.id} className="emote-float" style={emoteStyle(e.seed)}>
-          {EMOTE_ICONS[e.kind]}
+          <EmoteIcon kind={e.kind} />
           <small>{e.name}</small>
         </span>
       ))}

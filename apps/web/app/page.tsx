@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Masthead, NunIllustration } from "./brand";
 import { HostButton } from "./host-button";
+import { Icon } from "./icons";
 import { JoinForm } from "./join-form";
 
 export default function Home() {
@@ -17,9 +18,7 @@ export default function Home() {
                 <br />
                 <span className="title-nuns">
                   NUNS
-                  <span className="title-star" aria-hidden>
-                    ✳
-                  </span>
+                  <Icon name="spark" className="title-star" />
                 </span>
               </span>
             </h1>

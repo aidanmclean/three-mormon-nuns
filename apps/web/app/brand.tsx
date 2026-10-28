@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Icon } from "./icons";
 
 /** Published cartoon asset; source and public-domain notice: docs/ASSETS.md. */
 export function NunIllustration({ small = false }: { small?: boolean }) {
@@ -21,7 +22,7 @@ export function Masthead({ label = "PARTY GAME" }: { label?: string }) {
     <header className="masthead">
       <Link href="/" className="brand-lockup" aria-label="3 Mormon Nuns home">
         <span className="brand-mark">
-          3<span aria-hidden>✳</span>
+          3<Icon name="spark" className="brand-spark" />
         </span>
         <span>
           MORMON

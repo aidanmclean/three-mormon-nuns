@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isValidCode, normalizeCode, randomCode } from "./code";
+import { NAME_MAX_LEN } from "./constants";
 import { cleanName, nameKey, validateName } from "./names";
 
 describe("lobby codes", () => {
@@ -41,12 +42,13 @@ describe("names", () => {
       ok: false,
       message: "Enter a name.",
     });
-    expect(validateName("a".repeat(20))).toEqual({
+    expect(NAME_MAX_LEN).toBe(16);
+    expect(validateName("a".repeat(NAME_MAX_LEN))).toEqual({
       ok: true,
-      name: "a".repeat(20),
+      name: "a".repeat(NAME_MAX_LEN),
     });
-    expect(validateName("a".repeat(21)).ok).toBe(false);
+    expect(validateName("a".repeat(NAME_MAX_LEN + 1)).ok).toBe(false);
     // Counted in code points, so emoji names aren't penalized.
-    expect(validateName("😀".repeat(20)).ok).toBe(true);
+    expect(validateName("😀".repeat(NAME_MAX_LEN)).ok).toBe(true);
   });
 });

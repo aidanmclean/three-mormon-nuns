@@ -9,15 +9,11 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Masthead, NunIllustration, Steps } from "@/app/brand";
-import { EmoteLayer } from "@/app/game-bits";
-import { GameBoard } from "@/app/game-board";
 import { LobbyConnection } from "@/app/lobby-connection";
 import { Message } from "@/app/message";
-import { TeamBoard } from "@/app/team-board";
-import { WritingScreen } from "@/app/writing-screen";
 import { clearScreen, devicePath, loadScreen, saveScreen } from "@/lib/session";
 import { type EmoteBurst, useLobby } from "@/lib/use-lobby";
+import { TvBoard } from "./tv";
 
 export function HostScreen({ code: rawCode }: { code: string }) {
   const code = normalizeCode(rawCode);
@@ -64,150 +60,39 @@ export function HostScreen({ code: rawCode }: { code: string }) {
       );
     case "joined":
       return lobby.view ? (
-        <>
-          {!lobby.connected && (
-            <div className="bg-amber-500 px-4 py-2 text-center font-semibold text-black">
-              Reconnecting…
-            </div>
-          )}
-          <LobbyBoard
-            view={lobby.view}
-            clockOffset={lobby.clockOffset}
-            emotes={lobby.emotes}
-          />
-        </>
+        <LobbyBoard
+          view={lobby.view}
+          clockOffset={lobby.clockOffset}
+          emotes={lobby.emotes}
+          connected={lobby.connected}
+        />
       ) : (
         <LobbyConnection lobby={lobby} hosting />
       );
   }
 }
 
+/** The TV view, with the join addresses players should type (D20, D38). */
 function LobbyBoard({
   view,
   clockOffset,
   emotes,
+  connected,
 }: {
   view: LobbyView;
   clockOffset: number;
   emotes: EmoteBurst[];
+  connected: boolean;
 }) {
-  // The addresses players should type on their phones, best first (D20).
   const addresses = useJoinAddresses();
-  const gm = view.players.find((p) => p.isGamemaster);
-  const { config } = view;
-  const minutes = `${Math.floor(config.roundLengthSec / 60)}:${String(config.roundLengthSec % 60).padStart(2, "0")}`;
-
-  const invite = (
-    <aside className="host-invite">
-      <h1>Join the game</h1>
-      <p className="text-sm mt-5">Join on your phone at</p>
-      <p className="join-address">{addresses[0] ?? "…"}</p>
-      <p className="eyebrow mt-4">ENTER THE ROOM CODE</p>
-      <div className="host-code">{view.code}</div>
-      {addresses.length > 1 && (
-        <p className="fine-print">
-          Not working? Try {addresses.slice(1).join(" or ")}
-        </p>
-      )}
-      <NunIllustration small />
-    </aside>
-  );
   return (
-    <div className="site-shell host-shell">
-      <EmoteLayer emotes={emotes} />
-      <Masthead label="SHARED SCREEN" />
-      <Steps
-        current={
-          view.phase === "teams"
-            ? "teams"
-            : view.phase === "writing"
-              ? "writing"
-              : view.phase === "lobby"
-                ? "lobby"
-                : "play"
-        }
-      />
-      <main className="host-main">
-        {view.phase === "lobby" ? (
-          <div className="host-board">
-            {invite}
-            <section className="host-players">
-              <div className="host-players-heading">
-                <h2>Players</h2>
-                <span className="badge">
-                  {view.players.length} / {config.maxPlayers} HERE
-                </span>
-              </div>
-              {!view.players.length ? (
-                <div className="empty-room">
-                  <span aria-hidden>[ . . . ]</span>
-                  <h3>Waiting for players</h3>
-                  <p>The first player to join becomes the game master.</p>
-                </div>
-              ) : (
-                <ul className="player-tickets">
-                  {view.players.map((p) => (
-                    <li
-                      key={p.id}
-                      className={`player-ticket ${p.status === "inactive" ? "offline" : ""}`}
-                    >
-                      <span className="player-avatar" aria-hidden>
-                        {p.status === "inactive" ? "[--]" : "[:)]"}
-                      </span>
-                      <div>
-                        <strong>{p.name}</strong>
-                        {p.isGamemaster && (
-                          <span className="badge mt-1">GAME MASTER</span>
-                        )}
-                        {p.isCavan && (
-                          <span className="badge badge-cavan mt-1">CAVAN</span>
-                        )}
-                        {p.status === "inactive" && (
-                          <span className="fine-print">offline</span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        ) : view.game ? (
-          <div className="host-game-layout">
-            <GameBoard view={view} clockOffset={clockOffset} />
-            <p className="fine-print host-late-join">
-              Late? Join at {addresses[0] ?? "…"} with code{" "}
-              <strong>{view.code}</strong>
-            </p>
-          </div>
-        ) : (
-          <div className="host-team-layout">
-            {invite}
-            {view.phase === "writing" ? (
-              <WritingScreen view={view} />
-            ) : (
-              <TeamBoard view={view} clockOffset={clockOffset} />
-            )}
-          </div>
-        )}
-        <div className="host-rule-strip">
-          <span>{minutes} TURNS</span>
-          <span>{config.teamCount} TEAMS</span>
-          <span>{config.phrasesPerPlayer} PHRASES EACH</span>
-          <span>{config.maxWordsPerPhrase} WORDS MAX</span>
-          <span>3 ROUNDS</span>
-        </div>
-        <p className="host-gm-note">
-          {gm ? (
-            <>
-              <strong>{gm.name}</strong> is the game master.
-            </>
-          ) : (
-            "Join on your phone. Keep this screen visible."
-          )}
-        </p>
-      </main>
-    </div>
+    <TvBoard
+      view={view}
+      clockOffset={clockOffset}
+      emotes={emotes}
+      addresses={addresses}
+      connected={connected}
+    />
   );
 }
 

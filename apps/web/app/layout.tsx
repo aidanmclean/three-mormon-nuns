@@ -1,5 +1,5 @@
 import { GAME_NAME } from "@tmn/game";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bangers, Bricolage_Grotesque, Space_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -23,6 +23,14 @@ export const metadata: Metadata = {
   title: GAME_NAME,
   description:
     "A team guessing game in three rounds: describe, charades, and one word.",
+};
+
+/** Phones open at their natural width, fill the notch area, and can still pinch-zoom (D39). */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#fff6e5",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

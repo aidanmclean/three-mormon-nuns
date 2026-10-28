@@ -4,7 +4,7 @@
 // Takes about a minute: the wheel spins and one turn runs out on the server clock.
 
 const HOST = process.env.PARTY_HOST ?? "localhost:8787";
-const V = 6; // keep in sync with PROTOCOL_VERSION in packages/game
+const V = 7; // keep in sync with PROTOCOL_VERSION in packages/game
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const code = Array.from(
   { length: 4 },
@@ -109,8 +109,13 @@ check(
 // Cavan (D30)
 gm.send({ type: "setCavan", playerId: id("Drew") });
 check(
-  await screen.until((v) => v.players.find((p) => p.name === "Drew")?.isCavan),
-  "GM makes Drew Cavan (visible on the TV)",
+  await gm.until((v) => v.players.find((p) => p.name === "Drew")?.isCavan),
+  "GM makes Drew Cavan",
+);
+check(
+  !screen.view.players.some((p) => p.isCavan) &&
+    !phones.Blair.view.players.some((p) => p.isCavan),
+  "only the GM (and Cavan) can tell who Cavan is",
 );
 
 // Wheel → captains name teams → writing
@@ -248,28 +253,18 @@ const next = await screen.until(
 );
 check(next, "rotation moves on to the other team");
 
-// Skip and go next (D35): the turn passes to a teammate, then comes back.
+// Skip swaps with the next teammate (D41): B goes now, A is owed the team's next turn.
 const skippedId = next.game.turn.playerId;
 gm.send({ type: "skipTurn" });
 const passed = await screen.until(
   (v) =>
     v.phase === "turnReady" &&
     v.game.turn.playerId !== skippedId &&
-    v.game.skipped.includes(skippedId),
+    v.game.owed.includes(skippedId),
 );
 check(
   passed?.game.turn.teamId === next.game.turn.teamId,
-  "GM skips a turn: a teammate takes it, and the skip is remembered",
-);
-gm.send({ type: "upNext", playerId: skippedId });
-check(
-  await screen.until(
-    (v) =>
-      v.game.turn?.playerId === skippedId &&
-      v.game.skipped.length === 0 &&
-      v.game.upNext === skippedId,
-  ),
-  "GM sends the skipped player up: they take the turn after all",
+  "skip keeps the turn on the same team and owes the skipped player the next one",
 );
 
 // GM controls: pause, add time, resume, end turn

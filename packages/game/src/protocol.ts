@@ -81,9 +81,8 @@ export const ClientMessage = z.discriminatedUnion("type", [
     ms: z.int().min(TURN_MIN_MS).max(TURN_MAX_MS),
   }),
   z.strictObject({ type: z.literal("reveal") }),
-  // Between turns: pass on whoever is up, or send a skipped player up (D35).
+  // Before a turn: whoever is up swaps with their next teammate (D41).
   z.strictObject({ type: z.literal("skipTurn") }),
-  z.strictObject({ type: z.literal("upNext"), playerId: Id }),
   z.strictObject({ type: z.literal("playAgain") }),
   z.strictObject({ type: z.literal("emote"), kind: z.enum(EMOTES) }),
 ]);

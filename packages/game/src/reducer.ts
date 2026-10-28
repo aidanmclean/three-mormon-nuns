@@ -176,7 +176,6 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       "restartPrevTurn",
       "reveal",
       "skipTurn",
-      "upNext",
       "playAgain",
     ].includes(action.type)
   )

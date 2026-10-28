@@ -579,7 +579,7 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ### D30: Restore Cavan, the moderated player
 
-**Status:** Accepted · 2026-10-27 (supersedes D27; restores the intent of D16)
+**Status:** Accepted · 2026-10-27 (supersedes D27; restores the intent of D16) Its "`isCavan` is public" consequence is superseded by D40.
 
 **Decision:**
 
@@ -725,7 +725,7 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ### D35: The GM can skip whoever is up, and send a skipped player up next
 
-**Status:** Accepted · 2026-10-27 (extends D13, D31)
+**Status:** Superseded by D41 · 2026-10-27 (extends D13, D31). Skipping is now a swap within the team; `upNext`, **Go next** and `game.skipped` are gone.
 
 **Decision:**
 
@@ -800,6 +800,214 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 - Cold `next dev` starts and builds compile from scratch. That takes seconds for this app.
 - Revisit when Next/Tailwind fix the invalidation.
 
+### D38: The host screen has its own TV layout, sized from the screen
+
+**Status:** Accepted · 2026-10-28 (refines D18). Its 8px floor on `--u` is superseded by D42.
+
+**Decision:**
+
+- The host screen no longer reuses the phone components. `apps/web/app/host/[code]/tv.tsx` (`TvBoard`) renders a full-screen, no-scroll layout with a header, the phase content and a footer.
+  - The header has the logo, one big phase label ("Lobby", "Picking teams", "Round 1 of 3 · Describe it"…) and, after the lobby, a join chip with the address and code.
+  - The footer, shown before the game, has the house rules as chips and who the GM is.
+- The lobby shows a numbered "Join on your phone" panel (go to the address, enter the code, type your name) beside big player tiles. The count is a slanted comic fraction (big red numerator, slash, smaller total). Its digits use heavy italic Bricolage rather than Bangers, whose "7" reads as "1" at a distance.
+- Team selection and writing show one column per team. Writing progress is dots per player: filled for approved, half for awaiting the GM, empty for still to write.
+- The 5-step progress strip, the "SHARED SCREEN" label and the in-game round banner are gone from the TV. The phase label replaces them.
+- Everything is sized in `--u = max(8px, min(1vw, 1.778vh))`, 1% of a 16:9 screen's width (19.2px at 1080p). The smallest text is 1.3u (≈25px), body text 1.6–2u, and the room code 8.6u. Player and member lists tighten with `data-density` so 16+ players still fit. A portrait screen stacks instead.
+
+**Why:** the user said the TV's components and text were too small to read across a room, and asked for a simpler, more readable layout with a bigger, comic, angled player count.
+
+**Alternatives:**
+
+- Scaling the phone components with `zoom` or bigger media queries: they're laid out for a phone held in a hand, not a room.
+- Fixed pixel sizes for 1080p: unreadable on 4K and overflowing on 720p.
+
+**Consequences:**
+
+- The old `host-*`, `player-ticket*`, `empty-room` and pixel-sized `tv-*` styles were removed. `game-board.tsx`, emotes and the podium use the TV unit.
+- Verified at 1920×1080 and 1280×720 with 0–16 players, in every phase, with no element off screen.
+
+### D39: Phones get an app-style layout; drawn icons replace emoji
+
+**Status:** Accepted · 2026-10-28 (refines D38)
+
+**Decision:**
+
+- **Phone shell (`apps/web/app/phone.tsx`):** every player screen is a `PhoneShell`.
+  - A sticky top bar shows the logo, the phase, and the room code.
+  - A strip shows who you are (avatar, name, GM, team).
+  - The body scrolls.
+  - A sticky bottom **dock** holds the one thing to do next (`BigButton`, 64px) with a one-line hint. It sits in thumb reach and respects the safe area.
+  - Everything secondary is a `Fold` (`<details>`) with a 58px tappable summary: house rules, "Everyone" progress, the GM's **Players** and **Turn options** (skip, ±10s, peek, skipped list, restart previous).
+- **GM tools:**
+  - Players open one menu at a time from a ⋯ button.
+  - In team selection, tapping a member reveals Move/Take-off buttons, replacing a dropdown on every card.
+  - The describer's screen hides all GM tools.
+- **Sizes:** body text 17px, and nothing under 14px. Inputs are ≥18px so iOS doesn't zoom. Secondary buttons are 48px.
+- **Viewport:** the root layout exports a `viewport` (`device-width`, scale 1, `viewport-fit: cover`), and pinch-zoom stays allowed. The spinning wheel is clipped to its circle (`.wheel-disc`), because its rotating corners were adding scrollbars on phones. Phone pages never scroll sideways.
+- **Icons (`apps/web/app/icons.tsx`):**
+  - Line icons (`Icon`): arrows, check, crown, magnifier, pause/play, trash and others.
+  - Drawn emote stickers (`EmoteIcon`): ink outline behind colour fills.
+  - Podium medals (`Medal`).
+  - No emoji or emoji-capable symbols are rendered anywhere. They look different, or turn into colour emoji, from phone to phone.
+- **Role icons:** the crown (GM) and magnifier (Cavan, GM only, D40) sit to the right of names.
+- **Avatars:** players get a stable colour from a hash of their id (`palette.ts`), used for tiles and avatars.
+- **TV lobby tiles:**
+  - Sized to the name, in wrapping rows that stretch flush to both edges, justified like text so the last row keeps natural widths.
+  - Four density steps (20 tiles fit), with no truncation.
+  - The time bar drains under the in-game clock.
+- **Names:** `NAME_MAX_LEN` drops from 20 to 16 so every name fits a TV tile and a phone row.
+
+**Why:** the user asked for phones that are "super playable", with big buttons and labels and collapsible settings. They also wanted a GM screen that doesn't feel overwhelming, a TV lobby that fits everyone's full name, role icons beside names, no emojis, and no zoom or scroll problems on the team screen.
+
+**Alternatives:**
+
+- Restyling the old phone components in place: they mixed TV and phone concerns and put every control on screen at once.
+- An icon font or icon package: a dozen inline SVGs are smaller and need no dependency.
+
+**Consequences:**
+
+- `TeamBoard` and `WritingScreen` are phone-only; the TV has its own components (D38).
+- 108 dead rules for the old phone and host styles were removed.
+- A name of 17–20 characters is now rejected ("Names can be at most 16 characters").
+
+### D40: Only the GM (and Cavan) can tell who Cavan is
+
+**Status:** Accepted · 2026-10-28 (supersedes the "`isCavan` is public" consequence of D30)
+
+**Decision:**
+
+- `viewFor` sets `isCavan` only for the GM and for Cavan's own view. For everyone else, the TV included, `phraseCount` equals `approvedCount`, so a phrase waiting for the GM looks like one not written yet.
+- No screen explains the role.
+  - The TV shows no magnifier and no legend.
+  - The lobby shows no "the GM checks Drew's phrases" line.
+  - Writing banners don't name anyone.
+- Cavan's phone just says "Alex checks every phrase you write" and shows "checking" or "rejected" on their own phrases. Only the GM's screens show the magnifier.
+
+**Why:** the user asked that only the GM sees Cavan's icon, with no explanation shown to others.
+
+**Alternatives:** hiding the icon only in the UI. The role would still be in every view, and the pending counts would give it away.
+
+**Consequences:**
+
+- The lobby e2e no longer expects Cavan on the TV. A new check asserts that the TV and another phone can't see it.
+- Readiness counts (`approvedCount`) are unchanged.
+
+### D41: Skipping a turn swaps the player with their next teammate
+
+**Status:** Accepted · 2026-10-28 (supersedes D35)
+
+**Decision:**
+
+- **`skipTurn`** (GM, `turnReady`) keeps the turn on the same team.
+  - The next connected teammate in the rotation goes now, with the same time (including a carried-over turn).
+  - The team's rotation doesn't move on for the swap. If A is up and B is next, skipping A gives B the turn now, and A takes the team's following turn: A and B swap.
+  - If nobody else on the team is connected, the skip is refused ("Nobody else on the team is connected to go first."). **End turn** is how the GM moves play to the next team.
+- The skipped player is added to **`game.owed`**.
+  - When their team is next up, the first owed, connected player on it goes ahead of the regular rotation, without moving the team's cursor.
+  - Starting their turn removes them from `owed`.
+  - An owed player who is away stays owed until they're back; their teammates keep playing meanwhile. Kicks prune the list.
+- `upNext`, the **Go next** button and `game.skipped` are removed.
+- The GM's **Turn options** explains the swap before the tap ("The next player on Nuns goes now; Frankie goes on the team's next turn.") and lists who is owed ("Goes next for their team").
+
+**Why:** the user: "skipping a turn should keep it on the same team, stop turn will go to the next team. next turn should work like if person a is supposed to go then b, clicking go next on person a makes it person b's turn then person a will have their turn next". D35's skip could hand the turn to the other team, and it needed a second tap (**Go next**) to bring the player back.
+
+**Alternatives:**
+
+- Keeping **Go next** as a manual override. With the swap automatic it has nothing left to do, and two skip-related buttons were confusing.
+- Sending the skipped player to the back of their team's rotation. They'd wait a whole lap, which feels like a penalty for a washroom break.
+
+**Consequences:**
+
+- `PROTOCOL_VERSION` 7: the `upNext` message is gone, and the view's `skipped`/`upNext` became `owed`.
+- `SCHEMA_VERSION` 9: stored v8 lobbies reset.
+- Deploy party before web.
+- `prepare` gives owed players priority. Invariants check that `owed` holds unique, existing players.
+- `skip.test.ts` covers:
+  - the swap order
+  - the refusal when no teammate is connected
+  - GM-only, before the turn starts
+  - an away owed player
+  - a kicked one
+
+  The game e2e checks that the turn stays on the team and that the skipped player is owed.
+
+### D42: TV panels shrink their content to fit; each team has one colour everywhere
+
+**Status:** Accepted · 2026-10-28 (refines D38 and D39; drops D38's 8px floor on `--u`)
+
+**Decision:**
+
+- **`Fit` (`apps/web/app/fit.tsx`):** a wrapper that measures its box and its content, on resize (ResizeObserver) and on every render, and scales the content down, never up (`transform: scale(var(--fit))`).
+  - The content is laid out at `100% / scale` wide, so text re-wraps into the extra width instead of only getting smaller.
+  - A short bounded search (at most about ten layouts) finds the biggest scale that fits.
+  - It is used on the TV game stage (round intro, up next, the live clock, review, results with the podium), the wheel panel (the wheel and its text) and each team's member list.
+- **`--u`** is now `min(1vw, 1.778vh)`, with no 8px floor. A short window shrinks the whole screen instead of clipping the stage.
+- **TV team lists:**
+  - Members fill one column, then start the next: one column while the biggest team has up to 7 players, two up to 16, then three.
+  - Names are never truncated.
+  - Every team uses the same row count, so the names line up.
+- **Podium:**
+  - Step heights are in `u` (9, 7 and 5.4) like the medal (3.2u × 3.85u), so the medal fits on the lowest step at any size.
+  - Medals are sized by CSS, not inline.
+  - Players tied for a place share one "N phrases each" line, and a step with three or more names uses smaller text.
+- **Phone team screen:**
+  - Your team comes first, marked "Your team".
+  - A captain gets a big team-coloured "Name your team" card, with a 64px field and button, in place of the page title.
+  - Everyone else sees who is naming each team.
+  - While the wheel spins, the wheel is smaller and teams are compact name chips.
+- **Team colours (`teamColor` in `palette.ts`):**
+  - Yellow, cyan, peach and lilac, by team position.
+  - They're used by the team cards and TV columns, the phone's team chip, the GM's "put on team" buttons and the scoreboard.
+  - The team that is up (or won) is lifted with a blue shadow instead of turning cyan.
+
+**Why:** the user's screenshots showed the TV clock and "PAUSED" clipped in a short window, and medals spilling out of short podium steps. They asked:
+
+- that text always fits, including the wheel panel on a PC;
+- that all names fit under their team, with more columns if needed;
+- that your own team shows first;
+- that it's obvious captains can name their team;
+- that the team badge matches the team's colour.
+
+**Alternatives:**
+
+- CSS-only sizing (`clamp`, container queries): CSS can't know how long the names, tie lists or messages will be.
+- Truncating with ellipses: it hides names, which is the complaint.
+
+**Consequences:**
+
+- On a crowded panel, TV text can go below the 1.3u minimum. It stays whole and on screen.
+- `Fit` runs a few layouts on each render of the stage. That's fine on the TV; phones don't use it.
+- Verified in Firefox at 1920×1080, 1366×650, 1280×600 and 1000×450, with 15 players with 16-character names:
+  - no panel overflowed;
+  - every medal sat inside its step;
+  - phones never scrolled sideways.
+
+### D43: Player messages are a dark, dismissable toast; impossible actions are disabled instead
+
+**Status:** Accepted · 2026-10-28 (refines D39)
+
+**Decision:**
+
+- **`--ink` is defined on `:root`.** It used to exist only inside `.m-app` and `.tv`. The phone toast and the reconnecting banner render outside `.m-app`, so their background and border were dropped, and their light text sat on the light page: an invisible box.
+- **The toast** (`.m-toast` in `play/[code]/game.tsx`):
+  - It shows server refusals and "Not connected" notices.
+  - It's a solid dark card with light text, a red edge and a warning icon, fixed just under the top bar so it never covers the dock's buttons.
+  - One message shows at a time. It clears itself after 4 seconds, or when tapped (`dismissNotice` from `useLobby`).
+- **Prevent instead of refuse:** when nobody else on the up player's team is connected, **Skip** is disabled, with one line saying why, instead of sending a skip the server will refuse (D41).
+- **No emoji-capable characters on the remaining pages either.** The home page, the masthead, **Host a new game**, **Join game**, host setup (**Reset defaults**, **Create lobby**, the round order) now use the drawn `Icon` set (`spark`, `arrowUpRight`, `arrowRight`, `undo`) instead of ✳, ↗, ↺ and →. A new `alert` icon is used by the toast.
+
+**Why:** the user reported that "Nobody else on the team is connected to go first." appeared "in an invisible box with invisible text", and asked that messages to players be visible without cluttering the screen. They also reported emojis still showing on phones for the logo and the **Host a new game** button.
+
+**Alternatives:**
+
+- Showing errors inline next to each control: there are dozens of server refusals, most of them rare. One toast covers them all, and disabling the common ones avoids the toast entirely.
+- Keeping the toast above the dock: the dock's height changes from screen to screen, so the toast sometimes covered the main button.
+
+**Consequences:**
+
+- A text scan of the rendered home, setup and lobby pages finds no arrows, dingbats or emoji.
+- A duplicate team name shows a readable toast that a tap dismisses.
+
 ---
 
 ## 4. What is implemented today
@@ -828,6 +1036,12 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ✅ **GM flexibility and the podium** (2026-10-27; D34–D37). Late arrivals join the team pool until teams are final, and the GM can spin the wheel for whoever's left. The GM can skip whoever is up and send them up again later. Results show the top three describers on pedestals. CI runs both WebSocket e2e suites. Turbopack's file-system cache is off so CSS edits always show.
 
+✅ **TV layout** (2026-10-28; D38). The host screen is laid out for reading across a room and scales with the screen.
+
+✅ **Phone layout, drawn icons, Cavan secrecy** (2026-10-28; D39, D40). Phones get a top bar, folds for secondary tools and a thumb-reach dock with one big action. All emoji are replaced by drawn icons, emotes and medals. TV lobby tiles fit every full name. Only the GM can tell who Cavan is.
+
+✅ **Skip swaps, text that always fits, team colours** (2026-10-28; D41, D42). Skipping a turn swaps the player with their next teammate, and they go on the team's next turn. TV panels shrink their content to fit any window, team lists wrap into columns, and medals fit their podium steps. On phones your team comes first and captains get a big naming card. Each team has one colour across every screen. Player messages are a readable toast, and the last emoji-capable symbols are gone (D43).
+
 Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransactions) and the profanity filter.
 
 ### `packages/game` (`@tmn/game`)
@@ -838,7 +1052,7 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 | `code.ts`       | `normalizeCode`, `isValidCode`, `randomCode`.                                                                                                                                                                                                                                                                                                        |
 | `names.ts`      | `cleanName` (NFC; strips control and format characters such as zero-width spaces and bidi overrides; collapses whitespace), `nameKey` (case-insensitive identity) and `validateName`.                                                                                                                                                                |
 | `config.ts`     | `ConfigSchema` (zod, ranges from `CONFIG_RANGES`) and `DEFAULT_CONFIG` (60 s turns, 2 teams, 3 phrases each, up to 3 words per phrase, 20 players; no moderation setting: Cavan is a role, D30).                                                                                                                                                     |
-| `types.ts`      | LobbyState v8: players, GM and Cavan, teams with saved-name flags, draft mode (wheel/manual, D32) and queue/stage/deadline, public spin snapshots, private phrase records with status, the game (round, pile, team and player scores, rotation cursors, skipped/up-next players, turn, previous-turn snapshot) and screen key.                       |
+| `types.ts`      | LobbyState v9: players, GM and Cavan, teams with saved-name flags, draft mode (wheel/manual, D32) and queue/stage/deadline, public spin snapshots, private phrase records with status, the game (round, pile, team and player scores, rotation cursors, players owed a turn after a skip (D41), turn, previous-turn snapshot) and screen key.        |
 | `protocol.ts`   | Strict bounded create/screen/join, GM controls, startTeams, nameTeam, addToTeam/removeFromTeam, confirmTeams, submitPhrase/deletePhrase, Cavan moderation (setCavan/approvePhrase/rejectPhrase), game actions (startGame … playAgain) and emotes. Client wheel/timer results are never accepted.                                                     |
 | `game.ts`       | The game loop (D31): `startGame`, rotation (`prepare`), turn actions for the active player (`next`/`back`/`forward`), round intros (`acknowledge`, `beginRound`), GM clock controls, `proceed` with the D17 carry-over, `restartPrevTurn`, `playAgain`, the `_turnTick` deadline and `normalizeGame` (dropped/kicked players, auto-start of intros). |
 | `reducer.ts`    | Creation, joins, roles, GM actions, private writing, normalization and server draft ticks; `draft.ts` owns spin selection/timing and team edits, and `phrases.ts` owns author-only phrase operations; `phrases.ts` also handles Cavan moderation, and `game.ts` the game loop.                                                                       |
@@ -879,7 +1093,7 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 - kick
 - manual team picking, the unplaced pool and spinning for the rest (D32, D34)
 
-[`scripts/e2e-game.mjs`](../apps/party/scripts/e2e-game.mjs) (`pnpm --filter @tmn/party e2e:game`, 30 checks) plays a whole four-player game: Cavan vetting, the round 1 intro, mid-turn phrase secrecy, a pile-out carried into round 2, the server alarm ending a turn, skip and go next, pause/add time/end turn, emotes, results with the podium, and Play again. CI runs both suites (§7).
+[`scripts/e2e-game.mjs`](../apps/party/scripts/e2e-game.mjs) (`pnpm --filter @tmn/party e2e:game`, 30 checks) plays a whole four-player game: Cavan vetting, the round 1 intro, mid-turn phrase secrecy, a pile-out carried into round 2, the server alarm ending a turn, a skip that keeps the turn on the team and owes the skipped player the next one (D41), pause/add time/end turn, emotes, results with the podium, and Play again. CI runs both suites (§7).
 
 `src/index.ts`, `wrangler.jsonc` and `worker-configuration.d.ts` are as before. In dev the worker listens on `0.0.0.0:8787` (D12).
 
@@ -889,15 +1103,16 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
   - `join-form.tsx`: enter a code and go to `/play/CODE`
   - `host-button.tsx`: “Host a new game” links to `/host/new`; its local settings form creates no room until submitted. Submission stores a screen session with `creating: true` and the selected configuration, then opens `/host/CODE` (D21).
 - **`/host/new`**: `setup.tsx` shows all five numeric house rules, reset defaults, capacity validation and the run-of-show explanation.
-- **`/host/[code]`**: `host-screen.tsx` is the TV view. It shows a big code, a "Join on your phone at <address>" line (a LAN address when opened via `localhost`, with alternatives; D20), a player grid (GM tags, offline players dimmed), a settings summary and who the GM is. It handles missing host keys and closed lobbies.
+- **`/host/[code]`**: `host-screen.tsx` handles the connection states, then renders `tv.tsx` (`TvBoard`), a full-screen TV layout sized in screen units (D38). It has a header with the phase and a join chip; a lobby with a numbered how-to-join panel, a slanted player count and big player tiles; team and writing columns (with progress dots); and a footer with the house rules and the GM. The join address is a LAN address when opened via `localhost` (D20).
 - **`/play/[code]`**: `page.tsx` reads params inside Suspense (D4) and renders `game.tsx`, which shows:
   - status screens: connecting, the name prompt (with a small, muted "Rejoining? Use the same name as before" hint under the button), lobby not found, kicked, expired, replaced
   - a reconnecting banner and an error toast
   - `lobby-screen.tsx`: the code, the player list (ASCII face/status markers plus a dimmed name and an "offline" label; role badges; the GM's ⋯ menu to hand off game master, rename, kick) and settings (dropdowns for the GM, read-only for everyone else)
   - `writing-screen.tsx`: phrase forms with status badges (pending/rejected for Cavan), the GM's moderation queue (Approve/Reject) and **Start the game** (D30).
   - `game-screen.tsx`: the phone during a game (D31): round intro with **Got it**, turn ready (with ±10 s and restart-previous for the GM), the active player's countdown, phrase card, **Got it**/**Back**, the GM's pause/resume/end/reveal controls, review with Back/Forward and **Proceed**, results with **Play again**, and an emote bar.
-- **`/host/[code]`** in game phases renders `game-board.tsx`: who's up, the clock, round rules, scoreboard, the guessed list in review and the winner. Floating emotes (`EmoteLayer`) cover the whole TV. Shared pieces (clock hook, scoreboard, round banner, emote icons) are in `game-bits.tsx`.
-- **`team-board.tsx`** shows the wheel, or "Pick the teams" in manual mode (D32). The GM gets a **Not on a team yet** list with one button per team. The lobby's `TeamModeChoice` (wheel or manual) sits above **Everyone’s in**.
+- **`/host/[code]`** in game phases renders `game-board.tsx` inside the TV layout: who's up, the clock, round rules, phrases left, scoreboard, the guessed list in review, and the winner with the podium. Floating emotes (`EmoteLayer`) cover the whole TV. Shared pieces (clock hook, scoreboard, round banner, emote icons) are in `game-bits.tsx`.
+- **`team-board.tsx`** shows the wheel, or "Pick the teams" in manual mode (D32). Your team comes first; a captain gets a big **Name your team** card (D42). The GM gets a **Not on a team yet** list with one button per team, in the team colours. The lobby's `TeamModeChoice` (wheel or manual) sits above **Everyone’s in**.
+- **`fit.tsx`** (`Fit`) shrinks a TV panel's content until it fits (D42). **`palette.ts`** has the player colours (D39) and `teamColor` (D42).
 - **Emotes** (`EmoteLayer` in `game-bits.tsx`): each burst gets a random `seed` when it arrives (`use-lobby.ts`). A hash of the seed sets CSS variables for its position, drift, rise, tilt, size and duration, so emotes scatter across the screen instead of rising in a line.
 - **`lib/use-lobby.ts`** wraps `usePartySocket` with `?v=PROTOCOL_VERSION`.
   - `lobby-connection.tsx` provides host/player startup feedback: after 8 seconds without a lobby response it shows a connection error and retry control, while automatic reconnects continue. Creation errors are visible immediately. Retry preserves the pending room and settings (D25).
@@ -934,7 +1149,7 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 - Every accepted transition is persisted **before** it is broadcast.
 - The stored blob carries a `schemaVersion` ([§6.5](#65-state-integrity)).
 
-**`LobbyState`.** Implemented schema v8 contains:
+**`LobbyState`.** Implemented schema v9 contains:
 
 - `code`, `phase`, validated `config`, `schemaVersion`, creation/expiry timestamps;
 - `players` with server-only session tokens, status, waiting flag and team ID;
@@ -943,7 +1158,7 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 - `draft: { mode: "wheel" | "manual", remainingIds, nextTeamIndex, stage: "spinning" | "revealing" | "complete", nextAt } | null` (D32);
 - `lastDraw: { sequence, teamId, playerId, candidates: { id, name }[], startedAt, endsAt } | null`;
 - private `phrases: Record<id, { id, authorId, text, status: "approved" | "pending" | "rejected" }>` (D30);
-- `game: { round, pile, scores, playerScores, teamCursor, memberCursor, acknowledged, turn, previous, skipped, upNext } | null` (D31, D35, D36; see `types.ts` for `Turn` and `GameSnapshot`).
+- `game: { round, pile, scores, playerScores, teamCursor, memberCursor, acknowledged, turn, previous, owed } | null` (D31, D36, D41; see `types.ts` for `Turn` and `GameSnapshot`).
 
 The `teams` phase is an automatic draft followed by captain naming and optional GM membership corrections. `confirmTeams` enters writing, and `startGame` creates `game` (D31); `playAgain` clears it.
 
@@ -970,16 +1185,16 @@ Server-originated actions (`timeout`, `presenceSweep`) go through the same reduc
 
 After each change the server sends every connection `viewFor(state, playerId)` rather than the raw state. ✅
 
-| Viewer                                            | What their view includes                                                                   |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Active player, during `turnActive` / `turnReview` | `game.turn.currentPhrase`: the phrase being described (or, in review, the one not counted) |
-| Game master, while `reveal` is on                 | the same current phrase                                                                    |
-| Game master, during writing                       | `moderation`: Cavan's pending phrases with their text (D30)                                |
-| Each author                                       | their own phrases, with status (approved / pending / rejected)                             |
-| Everyone, once the game is over                   | `game.leaders`: the top three describers by points (D36)                                   |
-| Everyone, during `turnReview`                     | `game.turn.guessed`: the phrases guessed that turn (they were said out loud)               |
-| Everyone, during the game                         | `game.skipped` and `game.upNext`: who the GM skipped and who goes next (D35)               |
-| Everyone                                          | names, teams, Cavan/GM flags, scores, phase, round, timer, counts only for phrases         |
+| Viewer                                            | What their view includes                                                                                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Active player, during `turnActive` / `turnReview` | `game.turn.currentPhrase`: the phrase being described (or, in review, the one not counted)                                                        |
+| Game master, while `reveal` is on                 | the same current phrase                                                                                                                           |
+| Game master, during writing                       | `moderation`: Cavan's pending phrases with their text (D30); only the GM (and Cavan themselves) see who Cavan is and Cavan's pending counts (D40) |
+| Each author                                       | their own phrases, with status (approved / pending / rejected)                                                                                    |
+| Everyone, once the game is over                   | `game.leaders`: the top three describers by points (D36)                                                                                          |
+| Everyone, during `turnReview`                     | `game.turn.guessed`: the phrases guessed that turn (they were said out loud)                                                                      |
+| Everyone, during the game                         | `game.owed`: who the GM skipped, who takes their team's next turn (D41)                                                                           |
+| Everyone                                          | names, teams, the GM flag, scores, phase, round, timer, counts only for phrases                                                                   |
 
 The host screen gets `viewFor(state, null)`, so it never sees a phrase still in play. Tokens never appear in any view. Emotes are broadcast without touching state. Tests assert each of these rules.
 
@@ -1018,8 +1233,7 @@ The reducer enforces this table, and rejects anything not listed. ✅ marks acti
 | ✅ `proceed`                                   | game master                                  | `turnReview`                              | Adds `cursor` to the team's score and removes `seen[0…cursor)` from the pile. `endedBy: "pile"` keeps the same player and the time left (D17): next round's `roundIntro` if the pile is empty (`results` after round 3), else `turnReady` in the same round. Otherwise → `turnReady` for the next team's player |
 | ✅ `restartPrevTurn { ms }`                    | game master                                  | `turnReady`, `roundIntro`, `results`      | Undoes the last `proceed` from its snapshot; same player, chosen time (1 s–10 min)                                                                                                                                                                                                                              |
 | ✅ `reveal`                                    | game master                                  | `turnActive`                              | Shows the GM the active player's phrases                                                                                                                                                                                                                                                                        |
-| ✅ `skipTurn`                                  | game master                                  | `turnReady`                               | Whoever is up passes: their next connected teammate plays with the same time, else the next team (D35)                                                                                                                                                                                                          |
-| ✅ `upNext { playerId }`                       | game master                                  | `roundIntro`–`turnReview`                 | A skipped, connected player takes their team's next turn (now, if their team is up) (D35)                                                                                                                                                                                                                       |
+| ✅ `skipTurn`                                  | game master                                  | `turnReady`                               | Whoever is up swaps with their next connected teammate, who plays now with the same time; the skipped player is owed the team's next turn. Refused if nobody else on the team is connected (D41)                                                                                                                |
 | ✅ `emote { kind }`                            | any connected player                         | any                                       | Broadcast only, never stored; per-socket rate limit applies                                                                                                                                                                                                                                                     |
 | ✅ `playAgain`                                 | game master                                  | `results`                                 | [§5.7](#57-play-again)                                                                                                                                                                                                                                                                                          |
 | ✅ `_presence { active, inactive }` _(server)_ | shell sweep                                  | any                                       | Status transitions only (D15)                                                                                                                                                                                                                                                                                   |
@@ -1198,7 +1412,7 @@ Defined in [`constants.ts`](../packages/game/src/constants.ts) and [`config.ts`]
 | Limit                                               | Default                                   |
 | --------------------------------------------------- | ----------------------------------------- |
 | `MAX_MESSAGE_BYTES`                                 | 4 KB                                      |
-| `NAME_MAX_LEN`                                      | 20 characters                             |
+| `NAME_MAX_LEN`                                      | 16 characters (D39)                       |
 | `PHRASE_MAX_LEN`                                    | 80 code points                            |
 | `WHEEL_SPIN_MS` / `WHEEL_REVEAL_MS`                 | 2 600 / 900 ms                            |
 | `maxWordsPerPhrase`                                 | config 1–10                               |
@@ -1284,7 +1498,7 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 | fast-check                           | 4.10.2        |
 | Node / pnpm                          | 24.18 / 11.24 |
 
-**Protocol/storage:** `PROTOCOL_VERSION = 6`, `SCHEMA_VERSION = 8` (D30–D36). Deploy party before web; persisted v7 lobbies reset.
+**Protocol/storage:** `PROTOCOL_VERSION = 7`, `SCHEMA_VERSION = 9` (D30–D36, D41). Deploy party before web; persisted v8 lobbies reset.
 
 **Connection feedback:** `LOBBY_RESPONSE_TIMEOUT_MS = 8_000`. This is a host/player startup UI grace period, not a socket close or server timeout. Automatic retries continue after the error is shown; “Try again” starts a fresh grace period (D25).
 

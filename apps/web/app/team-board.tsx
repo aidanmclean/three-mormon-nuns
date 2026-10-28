@@ -1,303 +1,433 @@
 "use client";
 
 import { type LobbyView, NAME_MAX_LEN, type Team } from "@tmn/game";
-import { useState } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import type { LobbyAction } from "@/lib/use-lobby";
+import { Icon } from "./icons";
 import { NameWheel } from "./name-wheel";
+import { teamColor } from "./palette";
+import { Avatar, BigButton, DockHint, PhoneShell, PlayerName } from "./phone";
+import { ManagePlayers } from "./players";
 
 type Send = (action: LobbyAction) => void;
 
+/**
+ * Team selection on a phone (D28, D32, D34, D39, D42): your own team comes
+ * first, and a captain gets a big "name your team" card at the top.
+ */
 export function TeamBoard({
   view,
   send,
   clockOffset = 0,
 }: {
   view: LobbyView;
-  send?: Send;
+  send: Send;
   clockOffset?: number;
 }) {
   const me = view.players.find((p) => p.id === view.you);
-  const gm = view.players.find((p) => p.isGamemaster);
+  const amGm = me?.isGamemaster ?? false;
+  const gm =
+    view.players.find((p) => p.isGamemaster)?.name ?? "The game master";
   const complete = view.draft?.stage === "complete";
   const manual = view.draft?.mode === "manual";
-  const placing = !!send && !!me?.isGamemaster && complete;
-  const unassigned = view.players.filter(
+  const spinning = !complete && !!view.lastDraw;
+  const unplaced = view.players.filter(
     (p) => !p.teamId && !p.waiting && p.status === "active",
   );
-  const waiting = view.players.filter((p) => p.waiting);
-  const heading = !complete
+  const unnamed = view.teams.filter((t) => !t.nameConfirmed).length;
+  const emptyTeam = view.teams.some(
+    (t) =>
+      !t.memberIds.some(
+        (id) => view.players.find((p) => p.id === id)?.status === "active",
+      ),
+  );
+  const ready = complete && !unplaced.length && !unnamed && !emptyTeam;
+  const myTeam = view.teams.find((t) => t.id === me?.teamId);
+  const captain = !!myTeam && myTeam.captainId === me?.id;
+  // Your own team matters most, so it goes first; colours keep the team's
+  // real position so they match the TV.
+  const teams = view.teams
+    .map((team, index) => ({ team, index }))
+    .sort((a, b) => Number(b.team === myTeam) - Number(a.team === myTeam));
+  const title = spinning
     ? "Wheel of names"
-    : manual
-      ? "Pick the teams"
-      : "Name your teams";
-  const subheading = !complete
-    ? "Players are assigned one at a time. The first on each team is captain."
-    : manual
-      ? placing
-        ? "Put each player on a team, or spin the wheel for the rest. The first on each team is captain and names it."
-        : `${gm?.name ?? "The game master"} is picking the teams. The first on each team is captain and names it.`
-      : "Captains: save a name for your team.";
-  const ready =
-    complete &&
-    !unassigned.length &&
-    view.teams.every(
-      (t) =>
-        t.nameConfirmed &&
-        t.memberIds.some((id) =>
-          view.players.some((p) => p.id === id && p.status === "active"),
-        ),
-    );
+    : !complete
+      ? "Picking teams"
+      : manual && unplaced.length
+        ? "Pick the teams"
+        : "Name your teams";
+  const sub = spinning
+    ? captain
+      ? "You’re a captain! You’ll name your team when the wheel stops."
+      : "Names are drawn one at a time. The first on each team is captain."
+    : !complete
+      ? `${gm} is setting up the teams.`
+      : amGm
+        ? manual && unplaced.length
+          ? "Tap a team next to each name, or spin for the rest."
+          : "Captains name their teams. Tap a player to move them."
+        : !myTeam
+          ? `${gm} will put you on a team.`
+          : !myTeam.nameConfirmed
+            ? `${captainName(view, myTeam)} is naming your team.`
+            : unnamed
+              ? "Waiting for the other teams to pick names."
+              : `All set! ${gm} starts the phrase writing next.`;
+
   return (
-    <section
-      className={`team-selection ${complete ? "draft-complete" : "draft-running"}`}
+    <PhoneShell
+      view={view}
+      phase="Teams"
+      dock={
+        amGm && complete ? (
+          <>
+            <BigButton
+              disabled={!ready}
+              onClick={() => send({ type: "confirmTeams" })}
+            >
+              Start writing
+            </BigButton>
+            <DockHint>
+              {ready
+                ? "Everyone has a team and every team has a name."
+                : unplaced.length
+                  ? `Put ${unplaced.length === 1 ? (unplaced[0]?.name ?? "1 player") : `${unplaced.length} players`} on a team first.`
+                  : emptyTeam
+                    ? "Every team needs someone connected."
+                    : `Waiting for ${unnamed} team name${unnamed === 1 ? "" : "s"}.`}
+            </DockHint>
+          </>
+        ) : undefined
+      }
     >
-      <div className="page-heading">
-        <h1>{heading}</h1>
-        <p>{subheading}</p>
-      </div>
-      {view.lastDraw && (
-        <NameWheel
-          key={view.lastDraw.sequence}
-          view={view}
-          clockOffset={clockOffset}
+      {/* A captain's naming card is the hero; nobody needs both. */}
+      {complete && captain && myTeam && !myTeam.nameConfirmed ? (
+        <NameYourTeam
+          key={myTeam.id}
+          team={myTeam}
+          index={view.teams.indexOf(myTeam)}
+          send={send}
         />
-      )}
-      {placing && send ? (
-        <PlacementPool view={view} send={send} />
       ) : (
-        complete &&
-        unassigned.length > 0 && (
-          <p className="waiting-note mb-5">
-            Not on a team yet: {unassigned.map((p) => p.name).join(", ")}.
-          </p>
-        )
+        <section className="m-hero">
+          <h1>{title}</h1>
+          <p className="m-sub">{sub}</p>
+        </section>
       )}
-      {!placing && waiting.length > 0 && (
-        <p className="waiting-note mb-5">
-          Joined after “Everyone’s in”: {waiting.map((p) => p.name).join(", ")}.
-          {complete && " The game master can add them to a team."}
-        </p>
-      )}
-      <div className="team-grid">
-        {view.teams.map((team, i) => (
-          <TeamCard
-            key={team.id}
-            team={team}
-            number={i + 1}
+
+      {spinning && (
+        <div className="m-wheel">
+          <NameWheel
+            key={view.lastDraw?.sequence}
             view={view}
-            send={complete ? send : undefined}
+            clockOffset={clockOffset}
           />
-        ))}
-      </div>
-      {complete && (
-        <div className="lobby-action">
-          {me?.isGamemaster && send ? (
-            <>
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={!ready}
-                onClick={() => send({ type: "confirmTeams" })}
-              >
-                Start writing phrases <span aria-hidden>→</span>
-              </button>
-              <p className="fine-print">
-                {ready
-                  ? "Everyone is assigned and every team has a saved name."
-                  : "Each team needs a saved name and a connected player. Assign everyone before continuing."}
-              </p>
-            </>
-          ) : (
-            <p className="waiting-note">
-              {gm?.name ?? "The game master"} starts writing when the teams are
-              ready.
-            </p>
-          )}
         </div>
       )}
-    </section>
+
+      {amGm && complete && unplaced.length > 0 && (
+        <section className="m-card m-card-flush">
+          <div className="m-card-head">
+            <h2>Not on a team yet</h2>
+            <span className="m-count">
+              <strong>{unplaced.length}</strong>
+            </span>
+          </div>
+          <ul className="m-list">
+            {unplaced.map((p) => (
+              <li key={p.id}>
+                <div className="m-row">
+                  <Avatar player={p} />
+                  <PlayerName
+                    player={p}
+                    you={p.id === view.you}
+                    showCavan={amGm}
+                  />
+                </div>
+                <div className="m-menu m-menu-teams">
+                  {view.teams.map((team, i) => (
+                    <button
+                      key={team.id}
+                      type="button"
+                      className="m-btn-small m-btn-small-strong"
+                      style={{ background: teamColor(i) }}
+                      aria-label={`Put ${p.name} on ${team.name}`}
+                      onClick={() =>
+                        send({
+                          type: "addToTeam",
+                          teamId: team.id,
+                          playerId: p.id,
+                        })
+                      }
+                    >
+                      {team.name}
+                    </button>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="m-card-foot">
+            <button
+              type="button"
+              className="m-btn-small m-btn-wide"
+              onClick={() => send({ type: "spinRest" })}
+            >
+              <Icon name="spin" /> Spin the wheel for{" "}
+              {unplaced.length === 1 ? unplaced[0]?.name : "the rest"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {teams.map(({ team, index }) => (
+        <TeamCard
+          key={team.id}
+          team={team}
+          index={index}
+          view={view}
+          compact={spinning}
+          send={complete ? send : undefined}
+        />
+      ))}
+
+      {amGm && <ManagePlayers view={view} send={send} />}
+    </PhoneShell>
   );
 }
 
-/**
- * GM only: everyone connected who isn't on a team, one tap per team (D32),
- * or the wheel for all of them at once (D34).
- */
-function PlacementPool({ view, send }: { view: LobbyView; send: Send }) {
-  const people = view.players.filter((p) => !p.teamId && p.status === "active");
-  if (!people.length) return null;
+function captainName(view: LobbyView, team: Team) {
   return (
-    <section className="placement-pool paper-panel mb-5">
-      <div className="panel-heading">
-        <h2>Not on a team yet</h2>
-        <span className="badge">{people.length}</span>
-      </div>
-      <ul>
-        {people.map((p) => (
-          <li key={p.id}>
-            <span className="placement-name">
-              {p.name}
-              {p.id === view.you && " (you)"}
-              {p.waiting && <small> · joined late</small>}
-            </span>
-            <span className="placement-teams">
-              {view.teams.map((team) => (
-                <button
-                  key={team.id}
-                  type="button"
-                  className="btn-secondary"
-                  aria-label={`Put ${p.name} on ${team.name}`}
-                  onClick={() =>
-                    send({ type: "addToTeam", teamId: team.id, playerId: p.id })
-                  }
-                >
-                  {team.name}
-                </button>
-              ))}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <div className="placement-spin">
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => send({ type: "spinRest" })}
-        >
-          Spin the wheel for{" "}
-          {people.length === 1 ? people[0]?.name : "the rest"}{" "}
-          <span aria-hidden>↻</span>
-        </button>
-        <p className="fine-print">
-          Each spin fills the smallest team, so sides stay even.
-        </p>
-      </div>
+    view.players.find((p) => p.id === team.captainId)?.name ?? "Your captain"
+  );
+}
+
+/** The captain's job, front and centre: one big field and one big button. */
+function NameYourTeam({
+  team,
+  index,
+  send,
+}: {
+  team: Team;
+  index: number;
+  send: Send;
+}) {
+  const [name, setName] = useState("");
+  const field = useRef<HTMLInputElement>(null);
+  return (
+    <section
+      className="m-card m-callout"
+      style={{ "--team": teamColor(index) } as CSSProperties}
+    >
+      <p className="m-callout-eyebrow">You’re the captain</p>
+      <h2>Name your team</h2>
+      <form
+        className="m-callout-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          // The button stays tappable; an empty name just puts you back in
+          // the field.
+          if (name.trim()) send({ type: "nameTeam", teamId: team.id, name });
+          else field.current?.focus();
+        }}
+      >
+        <input
+          ref={field}
+          className="m-field m-field-big"
+          aria-label={`Name for ${team.name}`}
+          placeholder={`e.g. The ${["Holy Rollers", "Nunchucks", "Choir", "Sisters"][index % 4]}`}
+          value={name}
+          maxLength={NAME_MAX_LEN}
+          autoComplete="off"
+          enterKeyHint="done"
+          onChange={(e) => setName(e.target.value)}
+        />
+        <BigButton type="submit" tone="go" icon="check">
+          Save team name
+        </BigButton>
+      </form>
+      <p className="m-callout-note">
+        It shows on the TV. You can rename it until writing starts.
+      </p>
     </section>
   );
 }
 
 function TeamCard({
   team,
-  number,
+  index,
   view,
+  compact,
   send,
 }: {
   team: Team;
-  number: number;
+  index: number;
   view: LobbyView;
+  compact: boolean;
   send?: Send;
 }) {
   const me = view.players.find((p) => p.id === view.you);
-  const canName = !!send && !!(me?.isGamemaster || team.captainId === view.you);
+  const amGm = !!me?.isGamemaster;
+  const mine = !!view.you && team.memberIds.includes(view.you);
+  const captain = team.captainId === view.you;
+  const canName = !!send && (amGm || captain);
   const [name, setName] = useState(team.nameConfirmed ? team.name : "");
-  const [pick, setPick] = useState("");
-  const candidates = view.players.filter(
-    (p) => p.status === "active" && p.teamId !== team.id,
-  );
+  const [editing, setEditing] = useState(false);
+  // A captain's first name goes in the big card above, not here.
+  const showForm =
+    canName && (editing || (!team.nameConfirmed && !(mine && captain)));
+  const others = view.teams.filter((t) => t.id !== team.id);
+  const members = team.memberIds.flatMap((id) => {
+    const p = view.players.find((player) => player.id === id);
+    return p ? [p] : [];
+  });
   return (
-    <article className="team-card">
-      <header className="team-card-header">
-        <p className="eyebrow">
-          TEAM {number} / {team.memberIds.length} PLAYERS
-        </p>
-        <h2>{team.name}</h2>
-        <p className="fine-print">
-          {team.nameConfirmed ? "Name saved ✓" : "Waiting for a team name"}
-        </p>
-        {canName && (
-          <form
-            className="team-name-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              send?.({ type: "nameTeam", teamId: team.id, name });
+    <section
+      className={`m-card m-card-flush m-team ${mine ? "is-mine" : ""}`}
+      style={{ "--team": teamColor(index) } as CSSProperties}
+    >
+      <div className="m-team-head">
+        <div className="m-team-title">
+          {mine && <span className="m-team-eyebrow">Your team</span>}
+          <h2>{team.name}</h2>
+        </div>
+        {team.nameConfirmed && canName && !editing ? (
+          <button
+            type="button"
+            className="m-link"
+            onClick={() => {
+              setName(team.name);
+              setEditing(true);
             }}
           >
-            <input
-              className="field"
-              aria-label={`Name for ${team.name}`}
-              placeholder="Team name"
-              value={name}
-              maxLength={NAME_MAX_LEN * 2}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="btn-secondary"
-              disabled={!name.trim()}
-            >
-              Save name
-            </button>
-          </form>
+            Rename
+          </button>
+        ) : (
+          <span className="m-team-state">
+            {team.nameConfirmed ? (
+              <>
+                <Icon name="check" /> named
+              </>
+            ) : (
+              "needs a name"
+            )}
+          </span>
         )}
-      </header>
-      <ul className="team-members">
-        {team.memberIds.map((id) => {
-          const p = view.players.find((player) => player.id === id);
-          return p ? (
-            <li
-              key={id}
-              className={`team-member ${p.status === "inactive" ? "offline" : ""}`}
-            >
-              <span>
-                {p.name}
-                {p.id === view.you && " (you)"}
-                {p.status === "inactive" && " · offline"}
-              </span>
-              {team.captainId === id && <span className="badge">CAPTAIN</span>}
-              {send && me?.isGamemaster && (
-                <button
-                  type="button"
-                  className="text-button"
-                  aria-label={`Remove ${p.name} from ${team.name}`}
-                  onClick={() =>
-                    send({
-                      type: "removeFromTeam",
-                      teamId: team.id,
-                      playerId: id,
-                    })
-                  }
-                >
-                  Remove
-                </button>
+      </div>
+      {send && !team.nameConfirmed && !showForm && !(mine && captain) && (
+        <p className="m-team-naming">
+          {team.captainId
+            ? `${captainName(view, team)} (captain) picks the name`
+            : "The first player on the team picks the name"}
+        </p>
+      )}
+      {showForm && (
+        <form
+          className="m-inline-form m-team-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            send?.({ type: "nameTeam", teamId: team.id, name });
+            setEditing(false);
+          }}
+        >
+          <input
+            className="m-field"
+            aria-label={`Name for ${team.name}`}
+            placeholder="Team name"
+            value={name}
+            maxLength={NAME_MAX_LEN}
+            autoComplete="off"
+            enterKeyHint="done"
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="m-btn-small m-btn-small-strong"
+            disabled={!name.trim()}
+          >
+            Save
+          </button>
+        </form>
+      )}
+      {compact ? (
+        <ul className="m-team-chips">
+          {members.map((p) => (
+            <li key={p.id} className={p.id === view.you ? "is-you" : undefined}>
+              {p.name}
+              {team.captainId === p.id && (
+                <span className="m-team-chip-tag">captain</span>
               )}
             </li>
-          ) : null;
-        })}
-        {!team.memberIds.length && (
-          <li className="py-5 text-sm">No players assigned yet.</li>
-        )}
-      </ul>
-      {send && me?.isGamemaster && (
-        <div className="team-tools">
-          <div className="pick-player">
-            <select
-              aria-label={`Move player to ${team.name}`}
-              className="field"
-              value={candidates.some((p) => p.id === pick) ? pick : ""}
-              onChange={(e) => setPick(e.target.value)}
-            >
-              <option value="">Move a player here…</option>
-              {candidates.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                  {p.waiting ? " (waiting)" : ""}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={!candidates.some((p) => p.id === pick)}
-              onClick={() => {
-                send({ type: "addToTeam", teamId: team.id, playerId: pick });
-                setPick("");
-              }}
-            >
-              Move
-            </button>
-          </div>
-        </div>
+          ))}
+          {!members.length && (
+            <li className="m-team-chips-empty">No one yet</li>
+          )}
+        </ul>
+      ) : (
+        <ul className="m-list">
+          {members.map((p) => {
+            const row = (
+              <div className="m-row">
+                <Avatar player={p} />
+                <PlayerName
+                  player={p}
+                  you={p.id === view.you}
+                  showCavan={amGm}
+                />
+                {team.captainId === p.id && (
+                  <span className="m-chip">captain</span>
+                )}
+                {amGm && send && (
+                  <Icon name="chevronDown" className="m-member-chevron" />
+                )}
+              </div>
+            );
+            return (
+              <li key={p.id}>
+                {amGm && send ? (
+                  <details className="m-member">
+                    <summary aria-label={`Move ${p.name}`}>{row}</summary>
+                    <div className="m-menu">
+                      {others.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          className="m-btn-small"
+                          onClick={() =>
+                            send({
+                              type: "addToTeam",
+                              teamId: t.id,
+                              playerId: p.id,
+                            })
+                          }
+                        >
+                          Move to {t.name}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="m-btn-small m-btn-danger"
+                        onClick={() =>
+                          send({
+                            type: "removeFromTeam",
+                            teamId: team.id,
+                            playerId: p.id,
+                          })
+                        }
+                      >
+                        Take off team
+                      </button>
+                    </div>
+                  </details>
+                ) : (
+                  row
+                )}
+              </li>
+            );
+          })}
+          {!members.length && <li className="m-empty-row">No one yet</li>}
+        </ul>
       )}
-    </article>
+    </section>
   );
 }

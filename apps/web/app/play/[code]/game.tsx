@@ -7,7 +7,7 @@ import {
   validateName,
 } from "@tmn/game";
 import { useState } from "react";
-import { Masthead, NunIllustration } from "@/app/brand";
+import { Icon } from "@/app/icons";
 import { LobbyConnection } from "@/app/lobby-connection";
 import { Message } from "@/app/message";
 import { loadSession } from "@/lib/session";
@@ -23,17 +23,25 @@ export function Game({ code: rawCode }: { code: string }) {
   return (
     <>
       {lobby.status === "joined" && !lobby.connected && (
-        <div className="bg-amber-500 px-4 py-2 text-center text-sm font-semibold text-black">
+        <div className="m-reconnecting" role="status">
           Reconnecting…
         </div>
       )}
       <Body code={code} lobby={lobby} />
+      {/* Server refusals and connection hiccups: one at a time, gone after
+          a few seconds or a tap (D43). */}
       {lobby.notice && (
-        <div
-          role="status"
-          className="fixed inset-x-4 bottom-4 mx-auto max-w-md rounded-xl bg-foreground px-4 py-3 text-center text-background shadow-lg"
-        >
-          {lobby.notice}
+        <div role="alert">
+          <button
+            type="button"
+            className="m-toast"
+            onClick={lobby.dismissNotice}
+          >
+            <Icon name="alert" className="m-toast-icon" />
+            <span className="m-toast-text">{lobby.notice}</span>
+            <Icon name="close" className="m-toast-close" />
+            <span className="sr-only">Dismiss</span>
+          </button>
         </div>
       )}
     </>
@@ -117,53 +125,59 @@ function NameForm({
   const shown = localError ?? error;
 
   return (
-    <div className="site-shell">
-      <Masthead label="JOIN GAME" />
-      <main className="name-main">
-        <div className="name-room">
-          <span className="eyebrow">ROOM</span>
-          <strong>{code}</strong>
-        </div>
-        <h1>Join the game</h1>
-        <p>Enter your name to join.</p>
-        <form
-          className="name-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const check = validateName(name);
-            if (!check.ok) return setLocalError(check.message);
-            onSubmit(check.name);
+    <div className="m-app m-join">
+      <header className="m-bar">
+        <span className="m-logo" role="img" aria-label="3 Mormon Nuns">
+          3<Icon name="spark" className="m-logo-spark" />
+        </span>
+        <span className="m-phase">Join</span>
+        <span className="m-code">
+          <span className="sr-only">Room </span>
+          {code}
+        </span>
+      </header>
+      <form
+        className="m-body m-join-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const check = validateName(name);
+          if (!check.ok) return setLocalError(check.message);
+          onSubmit(check.name);
+        }}
+      >
+        <h1 className="m-title">What’s your name?</h1>
+        <p className="m-sub">It shows on the TV. Keep it short.</p>
+        <input
+          id="player-name"
+          aria-label="Your name"
+          className="m-field m-field-big"
+          placeholder="Your name"
+          maxLength={NAME_MAX_LEN}
+          autoComplete="nickname"
+          autoCapitalize="words"
+          enterKeyHint="go"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setLocalError(null);
           }}
-        >
-          <label htmlFor="player-name">Your name</label>
-          <input
-            id="player-name"
-            aria-label="Your name"
-            className="field"
-            placeholder="Your name"
-            maxLength={NAME_MAX_LEN * 2}
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setLocalError(null);
-            }}
-          />
-          {shown && (
-            <p role="alert" className="form-error">
-              {shown}
-            </p>
-          )}
-          <button type="submit" className="btn-primary">
-            Join game <span aria-hidden>→</span>
-          </button>
-          <p className="fine-print text-center">
-            Rejoining? Use the same name as before.
+        />
+        <p className="m-count-line">
+          {[...name.trim()].length} / {NAME_MAX_LEN}
+        </p>
+        {shown && (
+          <p role="alert" className="m-error">
+            {shown}
           </p>
-        </form>
-        <div className="dither-box mt-9">
-          <NunIllustration small />
+        )}
+        <div className="m-dock m-dock-inline">
+          <button type="submit" className="m-btn m-btn-primary">
+            <span>Join game</span>
+            <Icon name="arrowRight" />
+          </button>
+          <p className="m-hint">Rejoining? Use the same name as before.</p>
         </div>
-      </main>
+      </form>
     </div>
   );
 }

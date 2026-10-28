@@ -26,9 +26,13 @@ describe("designating Cavan", () => {
     });
     ok(l.act(l.id("Alex"), { type: "setCavan", playerId: l.id("Cavan") }));
     expect(l.state.roles.cavanId).toBe(l.id("Cavan"));
-    const seen = viewFor(l.state, l.id("Blair")).players.find((p) => p.isCavan);
-    expect(seen?.name).toBe("Cavan");
-    expect(viewFor(l.state, null).players.some((p) => p.isCavan)).toBe(true);
+    // Only the GM and Cavan know who Cavan is (D40).
+    const cavanFor = (viewer: string | null) =>
+      viewFor(l.state, viewer).players.find((p) => p.isCavan)?.name;
+    expect(cavanFor(l.id("Alex"))).toBe("Cavan");
+    expect(cavanFor(l.id("Cavan"))).toBe("Cavan");
+    expect(cavanFor(l.id("Blair"))).toBeUndefined();
+    expect(cavanFor(null)).toBeUndefined();
   });
 
   it("can't hand Cavan the GM role, and handoff prefers someone else", () => {

@@ -1,7 +1,8 @@
 "use client";
 
 import type { LobbyView } from "@tmn/game";
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, type ReactNode, useState } from "react";
+import { Fit } from "./fit";
 
 const COLORS = [
   "#ffdc4a",
@@ -15,9 +16,12 @@ const COLORS = [
 export function NameWheel({
   view,
   clockOffset,
+  fit = false,
 }: {
   view: LobbyView;
   clockOffset: number;
+  /** Shrink the wheel and its text to fit the panel (the TV, D42). */
+  fit?: boolean;
 }) {
   const draw = view.lastDraw;
   const [mountedAt] = useState(() => Date.now());
@@ -46,65 +50,69 @@ export function NameWheel({
     "--wheel-delay": `-${elapsed}ms`,
     transform: `rotate(${rotation}deg)`,
   } as CSSProperties;
-  return (
-    <div className={`wheel-panel ${spinning ? "is-spinning" : "is-revealed"}`}>
+  const body: ReactNode = (
+    <>
       <div className="wheel-wrap">
         <span className="wheel-pointer" aria-hidden />
-        <svg
-          viewBox="0 0 320 320"
-          className={`name-wheel ${spinning ? "wheel-spinning" : ""}`}
-          style={wheelStyle}
-          role="img"
-          aria-label={`Wheel with ${draw.candidates.length} names`}
-        >
-          <title>Wheel of names</title>
-          {draw.candidates.map((p, i) => {
-            const start = ((i * angle - 90) * Math.PI) / 180;
-            const end = (((i + 1) * angle - 90) * Math.PI) / 180;
-            const path = `M160 160 L${160 + 152 * Math.cos(start)} ${160 + 152 * Math.sin(start)} A152 152 0 ${angle > 180 ? 1 : 0} 1 ${160 + 152 * Math.cos(end)} ${160 + 152 * Math.sin(end)} Z`;
-            return (
-              <g key={p.id}>
-                {draw.candidates.length === 1 ? (
-                  <circle cx="160" cy="160" r="152" fill={COLORS[0]} />
-                ) : (
-                  <path
-                    d={path}
-                    fill={COLORS[i % COLORS.length]}
-                    stroke="#20231e"
-                    strokeWidth="1.5"
-                  />
-                )}
-                <text
-                  x="160"
-                  y="38"
-                  textAnchor="middle"
-                  transform={`rotate(${(i + 0.5) * angle} 160 160)`}
-                  fontSize={draw.candidates.length > 16 ? 8 : 11}
-                  fontWeight="700"
-                  fill="#20231e"
-                >
-                  {p.name.length > 12 ? `${p.name.slice(0, 11)}…` : p.name}
-                </text>
-              </g>
-            );
-          })}
-          <circle
-            cx="160"
-            cy="160"
-            r="19"
-            fill="#fff6e5"
-            stroke="#20231e"
-            strokeWidth="3"
-          />
-          <circle
-            cx="160"
-            cy="160"
-            r="153"
-            fill="none"
-            stroke="#20231e"
-            strokeWidth="5"
-          />
-        </svg>
+        {/* The spinning square's corners would otherwise overflow and add
+            scrollbars on phones (D39). */}
+        <div className="wheel-disc">
+          <svg
+            viewBox="0 0 320 320"
+            className={`name-wheel ${spinning ? "wheel-spinning" : ""}`}
+            style={wheelStyle}
+            role="img"
+            aria-label={`Wheel with ${draw.candidates.length} names`}
+          >
+            <title>Wheel of names</title>
+            {draw.candidates.map((p, i) => {
+              const start = ((i * angle - 90) * Math.PI) / 180;
+              const end = (((i + 1) * angle - 90) * Math.PI) / 180;
+              const path = `M160 160 L${160 + 152 * Math.cos(start)} ${160 + 152 * Math.sin(start)} A152 152 0 ${angle > 180 ? 1 : 0} 1 ${160 + 152 * Math.cos(end)} ${160 + 152 * Math.sin(end)} Z`;
+              return (
+                <g key={p.id}>
+                  {draw.candidates.length === 1 ? (
+                    <circle cx="160" cy="160" r="152" fill={COLORS[0]} />
+                  ) : (
+                    <path
+                      d={path}
+                      fill={COLORS[i % COLORS.length]}
+                      stroke="#20231e"
+                      strokeWidth="1.5"
+                    />
+                  )}
+                  <text
+                    x="160"
+                    y="38"
+                    textAnchor="middle"
+                    transform={`rotate(${(i + 0.5) * angle} 160 160)`}
+                    fontSize={draw.candidates.length > 16 ? 8 : 11}
+                    fontWeight="700"
+                    fill="#20231e"
+                  >
+                    {p.name.length > 12 ? `${p.name.slice(0, 11)}…` : p.name}
+                  </text>
+                </g>
+              );
+            })}
+            <circle
+              cx="160"
+              cy="160"
+              r="19"
+              fill="#fff6e5"
+              stroke="#20231e"
+              strokeWidth="3"
+            />
+            <circle
+              cx="160"
+              cy="160"
+              r="153"
+              fill="none"
+              stroke="#20231e"
+              strokeWidth="5"
+            />
+          </svg>
+        </div>
       </div>
       <div className="wheel-result">
         <span className="eyebrow">
@@ -128,6 +136,17 @@ export function NameWheel({
           <span className="badge mt-3">ALL SPINS COMPLETE</span>
         )}
       </div>
+    </>
+  );
+  return (
+    <div className={`wheel-panel ${spinning ? "is-spinning" : "is-revealed"}`}>
+      {fit ? (
+        <Fit className="wheel-fit" innerClassName="wheel-fit-inner">
+          {body}
+        </Fit>
+      ) : (
+        body
+      )}
     </div>
   );
 }

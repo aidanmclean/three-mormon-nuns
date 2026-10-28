@@ -27,7 +27,6 @@ const KINDS = [
   "restartPrevTurn",
   "reveal",
   "skipTurn",
-  "upNext",
   "beginRound",
   "playAgain",
   "startGame",
@@ -70,8 +69,8 @@ function actionFor(state: LobbyState, s: Step): Action | "tick" | null {
           ? { type: "emote", kind: ["laugh", "tomato", "nope"][s.pick % 3] }
           : s.kind === "join"
             ? { type: "join", name: `New ${s.pick % 5}` }
-            : s.kind === "kick" || s.kind === "upNext"
-              ? { type: s.kind, playerId: someone }
+            : s.kind === "kick"
+              ? { type: "kick", playerId: someone }
               : s.kind === "addToTeam"
                 ? {
                     type: "addToTeam",
@@ -161,7 +160,6 @@ describe("game loop properties", () => {
       "_turnTick",
       "emote",
       "skipTurn",
-      "upNext",
     ])
       expect(succeeded.get(type) ?? 0, type).toBeGreaterThan(0);
   });

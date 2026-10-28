@@ -76,16 +76,22 @@ function freshTurn(
   };
 }
 
+const canPlay = (p: Player | undefined): p is Player =>
+  p?.status === "active" && !p.waiting && !!p.teamId;
+
 /**
  * Rotation (D13): teams take turns in teamOrder; each team cycles through its
  * own members. Offline players are skipped, and the same team plays with its
  * next connected member (Q1); a team with nobody connected is skipped.
+ * A player the GM sent up (D35) plays before their team's rotation continues,
+ * without moving it on; `exclude` passes over the player just skipped.
  */
 function prepare(
   state: LobbyState,
   game: Game,
   fromTeamIndex: number,
   remainingMs: number,
+  exclude: PlayerId | null = null,
 ): Game {
   const n = state.teamOrder.length;
   for (let k = 0; k < n; k++) {
@@ -94,21 +100,35 @@ function prepare(
     const members = teamId ? (state.teams[teamId]?.memberIds ?? []) : [];
     if (!teamId || members.length === 0) continue;
     const start = game.memberCursor[teamId] ?? 0;
-    for (let j = 0; j < members.length; j++) {
+    let regular: { player: Player; index: number } | null = null;
+    for (let j = 0; j < members.length && !regular; j++) {
       const mi = (start + j) % members.length;
       const player = state.players[members[mi] ?? ""];
-      if (player?.status === "active" && !player.waiting) {
-        return {
-          ...game,
-          teamCursor: (ti + 1) % n,
-          memberCursor: {
-            ...game.memberCursor,
-            [teamId]: (mi + 1) % members.length,
-          },
-          turn: freshTurn(player.id, teamId, remainingMs, false),
-        };
-      }
+      if (canPlay(player) && player.id !== exclude)
+        regular = { player, index: mi };
     }
+    const owed = game.upNext ? state.players[game.upNext] : undefined;
+    if (
+      canPlay(owed) &&
+      owed.teamId === teamId &&
+      owed.id !== exclude &&
+      owed.id !== regular?.player.id
+    )
+      return {
+        ...game,
+        teamCursor: (ti + 1) % n,
+        turn: freshTurn(owed.id, teamId, remainingMs, false),
+      };
+    if (regular)
+      return {
+        ...game,
+        teamCursor: (ti + 1) % n,
+        memberCursor: {
+          ...game.memberCursor,
+          [teamId]: (regular.index + 1) % members.length,
+        },
+        turn: freshTurn(regular.player.id, teamId, remainingMs, false),
+      };
   }
   return { ...game, turn: null };
 }
@@ -221,6 +241,9 @@ export function startGame(state: LobbyState): Result {
       acknowledged: [],
       turn: null,
       previous: null,
+      playerScores: {},
+      skipped: [],
+      upNext: null,
     },
   });
 }
@@ -343,9 +366,11 @@ export function gmGameAction(
       ...state,
       phase: "turnReady",
       game: {
+        ...game,
         round: p.round,
         pile: p.pile,
         scores: p.scores,
+        playerScores: p.playerScores,
         teamCursor: p.teamCursor,
         memberCursor: p.memberCursor,
         acknowledged: [],
@@ -354,6 +379,8 @@ export function gmGameAction(
       },
     });
   }
+  if (action.type === "skipTurn") return skipTurn(state, game);
+  if (action.type === "upNext") return sendUp(state, game, action.playerId);
 
   let current = state;
   if (timeUp(current, ctx.now)) current = toReview(current, "timer", ctx.now);
@@ -369,11 +396,15 @@ export function gmGameAction(
       const first = draw(g, [], ctx);
       if (!first) return fail("INVALID", "The pile is empty.");
       const countdownEndsAt = ctx.now + TURN_COUNTDOWN_MS;
+      const playerId = g.turn.playerId;
       return done({
         ...current,
         phase: "turnActive",
         game: {
           ...g,
+          // Their turn is happening, so nothing is owed any more (D35).
+          skipped: g.skipped.filter((id) => id !== playerId),
+          upNext: g.upNext === playerId ? null : g.upNext,
           turn: {
             ...g.turn,
             seen: [first],
@@ -455,10 +486,20 @@ function proceed(state: LobbyState, game: Game, turn: Turn): LobbyState {
     ...game.scores,
     [turn.teamId]: (game.scores[turn.teamId] ?? 0) + turn.cursor,
   };
+  // The describer gets the credit on the leaderboard (D36).
+  const playerScores =
+    turn.cursor > 0
+      ? {
+          ...game.playerScores,
+          [turn.playerId]:
+            (game.playerScores[turn.playerId] ?? 0) + turn.cursor,
+        }
+      : game.playerScores;
   const previous: GameSnapshot = {
     round: game.round,
     pile: game.pile,
     scores: game.scores,
+    playerScores: game.playerScores,
     teamCursor: game.teamCursor,
     memberCursor: game.memberCursor,
     playerId: turn.playerId,
@@ -469,6 +510,7 @@ function proceed(state: LobbyState, game: Game, turn: Turn): LobbyState {
     ...game,
     pile,
     scores,
+    playerScores,
     previous,
     turn: null,
     acknowledged: [],
@@ -500,6 +542,93 @@ function proceed(state: LobbyState, game: Game, turn: Turn): LobbyState {
     phase: "turnReady",
     game: prepare(state, next, next.teamCursor, turnLength(state)),
   };
+}
+
+/**
+ * GM, before a turn starts: whoever is up passes (washroom, or they'd rather
+ * not). Their next connected teammate takes the turn with the same time; if
+ * there's nobody, the next team plays. They're remembered as skipped (D35).
+ */
+function skipTurn(state: LobbyState, game: Game): Result {
+  const turn = game.turn;
+  if (state.phase !== "turnReady" || !turn)
+    return fail("WRONG_PHASE", "Skip someone before their turn starts.");
+  const skipped = [
+    ...game.skipped.filter((id) => id !== turn.playerId),
+    turn.playerId,
+  ];
+  const base: Game = {
+    ...game,
+    skipped,
+    upNext: game.upNext === turn.playerId ? null : game.upNext,
+    turn: null,
+  };
+  const teamIndex = Math.max(0, state.teamOrder.indexOf(turn.teamId));
+  const next = prepare(state, base, teamIndex, turn.remainingMs, turn.playerId);
+  if (!next.turn)
+    return fail("INVALID", "Nobody else is connected to take this turn.");
+  const sameTeam = next.turn.teamId === turn.teamId;
+  return done({
+    ...state,
+    game: {
+      ...next,
+      turn: sameTeam
+        ? { ...next.turn, carried: turn.carried }
+        : { ...next.turn, remainingMs: turnLength(state) },
+    },
+  });
+}
+
+/**
+ * GM: a skipped player is back and takes their team's next turn (D35). If
+ * their team is up right now, they take this one, and the teammate they
+ * replace keeps their place in the rotation.
+ */
+function sendUp(state: LobbyState, game: Game, playerId: PlayerId): Result {
+  if (!inGame(state.phase) || state.phase === "results")
+    return fail("WRONG_PHASE", "The game is over.");
+  const player = state.players[playerId];
+  if (!player || !game.skipped.includes(playerId))
+    return fail("INVALID", "Only someone who was skipped can be sent up.");
+  const { name } = player;
+  if (!canPlay(player))
+    return fail("INVALID", `${name} needs to be connected first.`);
+  const previous = game.upNext;
+  const skipped = [
+    ...game.skipped.filter((id) => id !== playerId),
+    // Only one player is sent up at a time; anyone already waiting stays owed.
+    ...(previous && previous !== playerId && state.players[previous]
+      ? [previous]
+      : []),
+  ];
+  let next: Game = { ...game, skipped, upNext: playerId };
+  const turn = game.turn;
+  if (
+    state.phase === "turnReady" &&
+    turn &&
+    turn.teamId === player.teamId &&
+    turn.playerId !== playerId
+  ) {
+    const teamId = turn.teamId;
+    const members = state.teams[teamId]?.memberIds ?? [];
+    // A regular pick already moved the rotation past them; step it back.
+    const memberCursor =
+      previous === turn.playerId
+        ? next.memberCursor
+        : {
+            ...next.memberCursor,
+            [teamId]: Math.max(0, members.indexOf(turn.playerId)),
+          };
+    const prepared = prepare(
+      state,
+      { ...next, memberCursor, turn: null },
+      Math.max(0, state.teamOrder.indexOf(teamId)),
+      turn.remainingMs,
+    );
+    if (prepared.turn?.playerId === playerId)
+      next = { ...prepared, turn: { ...prepared.turn, carried: turn.carried } };
+  }
+  return done({ ...state, game: next });
 }
 
 /** D9: back to the lobby with everyone still connected; game data cleared. */
@@ -540,11 +669,22 @@ export function normalizeGame(state: LobbyState, now: number): LobbyState {
   if (!game) return state;
   let current = state;
 
+  // Forget anyone who was kicked.
   const ids = new Set(Object.keys(state.players));
-  if (game.acknowledged.some((id) => !ids.has(id))) {
+  if (
+    game.acknowledged.some((id) => !ids.has(id)) ||
+    game.skipped.some((id) => !ids.has(id)) ||
+    (game.upNext !== null && !ids.has(game.upNext)) ||
+    Object.keys(game.playerScores).some((id) => !ids.has(id))
+  ) {
     game = {
       ...game,
       acknowledged: game.acknowledged.filter((id) => ids.has(id)),
+      skipped: game.skipped.filter((id) => ids.has(id)),
+      upNext: game.upNext !== null && ids.has(game.upNext) ? game.upNext : null,
+      playerScores: Object.fromEntries(
+        Object.entries(game.playerScores).filter(([id]) => ids.has(id)),
+      ),
     };
     current = { ...current, game };
   }

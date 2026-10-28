@@ -335,17 +335,6 @@ check(
   await alex2.waitFor(isError("INVALID")),
   "writing cannot start during wheel assignment",
 );
-const late = await new Client("late").open();
-late.send({ type: "join", name: "Late" });
-const lateJoined = await late.waitFor((m) => m.type === "joined");
-check(
-  await screen2.waitFor(
-    stateWhere((v) =>
-      v.players.some((p) => p.id === lateJoined?.playerId && p.waiting),
-    ),
-  ),
-  "a newcomer waits after Everyone's in",
-);
 const finished = await screen2.waitFor(
   stateWhere((v) => v.draft?.stage === "complete"),
   18000,
@@ -356,6 +345,20 @@ check(
       team.memberIds.length === 1 && team.captainId === team.memberIds[0],
   ),
   "alarms complete the balanced draft and appoint first-drawn captains",
+);
+// Until teams are final, a newcomer joins the pool rather than waiting (D34).
+const late = await new Client("late").open();
+late.send({ type: "join", name: "Late" });
+const lateJoined = await late.waitFor((m) => m.type === "joined");
+check(
+  await screen2.waitFor(
+    stateWhere((v) =>
+      v.players.some(
+        (p) => p.id === lateJoined?.playerId && !p.waiting && !p.teamId,
+      ),
+    ),
+  ),
+  "a newcomer before teams are final joins the pool of unplaced players",
 );
 alex2.send({ type: "confirmTeams" });
 check(
@@ -420,7 +423,7 @@ check(
 alex2.send({ type: "kick", playerId: lateJoined.playerId });
 check(
   await late.waitFor((m) => m.type === "bye" && m.reason === "kicked"),
-  "GM can remove a waiting player",
+  "GM can remove an unplaced player",
 );
 late.close();
 alex2.send({ type: "confirmTeams" });
@@ -538,6 +541,42 @@ check(
   ),
   "manual mode: the first player placed on each team is captain",
 );
+// Arrivals before teams are final join the pool, and the wheel can take
+// everyone left (D34).
+const pia = await new Client("Pia", { room: manualRoom }).open();
+pia.send({ type: "join", name: "Pia" });
+const piaId = (await pia.waitFor((m) => m.type === "joined"))?.playerId;
+check(
+  await tv.waitFor(
+    stateWhere((v) =>
+      v.players.some((p) => p.id === piaId && !p.waiting && !p.teamId),
+    ),
+  ),
+  "a late arrival before teams are final joins the pool, not the waiting room",
+);
+mo.send({ type: "spinRest" });
+check(
+  await tv.waitFor(
+    stateWhere(
+      (v) =>
+        v.draft?.stage === "spinning" &&
+        v.lastDraw?.candidates.some((c) => c.id === piaId),
+    ),
+  ),
+  "GM spins the wheel for whoever's left",
+);
+check(
+  await tv.waitFor(
+    stateWhere(
+      (v) =>
+        v.draft?.stage === "complete" &&
+        v.players.find((p) => p.id === piaId)?.teamId,
+    ),
+    10000,
+  ),
+  "the wheel puts them on a team",
+);
+pia.close();
 for (const name of ["Mo", "Nell", "Ozzie"]) people[`${name}Socket`].close();
 tv.close();
 

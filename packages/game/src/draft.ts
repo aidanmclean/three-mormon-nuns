@@ -44,11 +44,10 @@ export function startDraft(
       },
     ]),
   );
+  // Nobody waits during team selection: anyone offline now joins the pool
+  // when they're back (D34).
   const players = Object.fromEntries(
-    Object.values(state.players).map((p) => [
-      p.id,
-      { ...p, waiting: p.status !== "active" },
-    ]),
+    Object.values(state.players).map((p) => [p.id, { ...p, waiting: false }]),
   );
   const base = { ...state, phase: "teams" as const, players, teams, teamOrder };
   // Manual: no wheel. The draft is complete at once, so the usual GM team
@@ -85,12 +84,15 @@ export function startDraft(
 function nextSpin(state: LobbyState, ctx: Ctx): LobbyState {
   const draft = state.draft;
   if (!draft) return state;
-  const candidates = draft.remainingIds.flatMap((id) => {
-    const p = state.players[id];
-    return p && p.status === "active" && !p.waiting && !p.teamId
-      ? [{ id, name: p.name }]
-      : [];
-  });
+  // Everyone connected and unplaced, including anyone who joined or came back
+  // mid-wheel (D34); the existing queue order first.
+  const unplaced = Object.values(state.players).filter(
+    (p) => p.status === "active" && !p.waiting && !p.teamId,
+  );
+  const candidates = [
+    ...draft.remainingIds.flatMap((id) => unplaced.filter((p) => p.id === id)),
+    ...unplaced.filter((p) => !draft.remainingIds.includes(p.id)),
+  ].map((p) => ({ id: p.id, name: p.name }));
   if (!candidates.length)
     return {
       ...state,
@@ -131,6 +133,40 @@ function nextSpin(state: LobbyState, ctx: Ctx): LobbyState {
       endsAt,
     },
   };
+}
+
+/**
+ * GM: spin the wheel for everyone not on a team yet, e.g. after placing a few
+ * people by hand (D34). Teams stay balanced: each spin fills the smallest team.
+ */
+export function spinRest(state: LobbyState, ctx: Ctx): Result {
+  const draft = state.draft;
+  if (state.phase !== "teams" || !draft)
+    return {
+      ok: false,
+      code: "WRONG_PHASE",
+      message: "The wheel only spins during team selection.",
+    };
+  if (draft.stage !== "complete")
+    return invalid("The wheel is already spinning.");
+  const unplaced = Object.values(state.players).some(
+    (p) => p.status === "active" && !p.waiting && !p.teamId,
+  );
+  if (!unplaced) return invalid("Everyone connected is already on a team.");
+  return done(
+    nextSpin(
+      {
+        ...state,
+        draft: {
+          ...draft,
+          remainingIds: [],
+          stage: "revealing",
+          nextAt: ctx.now,
+        },
+      },
+      ctx,
+    ),
+  );
 }
 
 /** Alarm-only transition. Clients never submit winners or finish animations. */

@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["10.*.*.*", "192.168.*.*"],
   cacheComponents: true,
   partialPrefetching: true,
+  // Turbopack's on-disk cache kept serving the old globals.css after edits
+  // made while the server was stopped (the Tailwind loader result was
+  // restored as-is). Correct CSS beats a faster cold start (D37).
+  experimental: {
+    turbopackFileSystemCacheForDev: false,
+    turbopackFileSystemCacheForBuild: false,
+  },
   turbopack: {
     rules: {
       "*.css": {

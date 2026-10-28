@@ -61,6 +61,7 @@ export interface GameSnapshot {
   round: number;
   pile: string[];
   scores: Record<TeamId, number>;
+  playerScores: Record<PlayerId, number>;
   teamCursor: number;
   memberCursor: Record<TeamId, number>;
   playerId: PlayerId;
@@ -83,6 +84,12 @@ export interface Game {
   acknowledged: PlayerId[];
   turn: Turn | null;
   previous: GameSnapshot | null;
+  /** Phrases each player got their team to guess while describing (D36). */
+  playerScores: Record<PlayerId, number>;
+  /** Players the GM skipped who haven't had a turn since (D35). */
+  skipped: PlayerId[];
+  /** A skipped player the GM sent up: they take their team's next turn (D35). */
+  upNext: PlayerId | null;
 }
 
 /** How teams are made: the server wheel, or the GM placing everyone (D32). */

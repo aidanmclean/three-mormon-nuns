@@ -1,7 +1,7 @@
 import { isValidCode } from "./code";
 import { type Config, ConfigSchema, DEFAULT_CONFIG } from "./config";
 import { IDLE_EXPIRY_MS, SCHEMA_VERSION } from "./constants";
-import { advanceDraft, changeTeam, startDraft } from "./draft";
+import { advanceDraft, changeTeam, spinRest, startDraft } from "./draft";
 import {
   gmGameAction,
   inGame,
@@ -175,6 +175,8 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       "proceed",
       "restartPrevTurn",
       "reveal",
+      "skipTurn",
+      "upNext",
       "playAgain",
     ].includes(action.type)
   )
@@ -200,6 +202,8 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
     }
     case "startTeams":
       return startDraft(state, ctx, action.mode ?? "wheel");
+    case "spinRest":
+      return spinRest(state, ctx);
     case "confirmTeams": {
       if (state.phase !== "teams")
         return fail("WRONG_PHASE", "Select teams first.");
@@ -222,7 +226,14 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
           "INVALID",
           "Give every connected player a team, with someone connected on every team.",
         );
-      return done({ ...state, phase: "writing", lastDraw: null });
+      // From here on, anyone still unplaced (offline) waits for the GM (D34).
+      const players = Object.fromEntries(
+        Object.values(state.players).map((p) => [
+          p.id,
+          p.teamId ? p : { ...p, waiting: true },
+        ]),
+      );
+      return done({ ...state, phase: "writing", players, lastDraw: null });
     }
     case "kick": {
       const target = state.players[action.playerId];
@@ -306,7 +317,13 @@ function join(
   if (Object.keys(state.players).length >= state.config.maxPlayers) {
     return fail("LOBBY_FULL", "This lobby is full.");
   }
-  const player = newPlayer(check.name, ctx, state.phase !== "lobby");
+  // Until teams are final, newcomers join the pool of unplaced players; the
+  // wheel draws them too if it's spinning (D34). After that they wait.
+  const player = newPlayer(
+    check.name,
+    ctx,
+    state.phase !== "lobby" && state.phase !== "teams",
+  );
   return done(
     { ...state, players: { ...state.players, [player.id]: player } },
     [{ type: "bound", playerId: player.id, token: player.token }],

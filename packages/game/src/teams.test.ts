@@ -100,25 +100,17 @@ describe("the server wheel", () => {
         .sort(),
     ).toEqual([2, 2, 3]);
   });
-  it("skips a kicked winner and continues; late arrivals wait until the GM places them", () => {
+  it("skips a kicked winner and continues; a mid-wheel arrival is drawn too (D34)", () => {
     const l = lobbyWith("Alex", "Blair", "Casey", "Drew");
     ok(l.act(l.id("Alex"), { type: "startTeams" }, () => 0.99));
     ok(l.act(l.id("Alex"), { type: "kick", playerId: l.id("Drew") }));
     ok(l.act(null, { type: "join", name: "Emery" }));
     const late = Object.values(l.state.players).find((p) => p.name === "Emery");
-    expect(late?.waiting).toBe(true);
+    expect(late?.waiting).toBe(false);
     finishDraft(l);
-    expect(
-      Object.values(l.state.teams).flatMap((t) => t.memberIds),
-    ).not.toContain(l.id("Drew"));
-    ok(
-      l.act(l.id("Alex"), {
-        type: "addToTeam",
-        teamId: "team-2",
-        playerId: late?.id ?? "",
-      }),
-    );
-    expect(l.state.players[late?.id ?? ""]?.waiting).toBe(false);
+    const members = Object.values(l.state.teams).flatMap((t) => t.memberIds);
+    expect(members).not.toContain(l.id("Drew"));
+    expect(members).toContain(late?.id);
     expect(checkInvariants(l.state)).toEqual([]);
   });
   it("skips offline names without blocking the draft", () => {
@@ -282,25 +274,82 @@ describe("manual teams (D32)", () => {
     expect(l.state.phase).toBe("writing");
     expect(checkInvariants(l.state)).toEqual([]);
   });
-  it("puts late arrivals in the waiting room until the GM places them", () => {
+  it("puts arrivals in the pool until teams are final, then the waiting room (D34)", () => {
     const l = lobbyWith("Alex", "Blair");
     const gm = l.id("Alex");
     ok(l.act(gm, { type: "startTeams", mode: "manual" }));
     ok(l.act(null, { type: "join", name: "Casey" }));
-    const casey =
-      Object.values(l.state.players).find((p) => p.name === "Casey")?.id ?? "";
-    expect(l.state.players[casey]?.waiting).toBe(true);
+    const idOf = (name: string) =>
+      Object.values(l.state.players).find((p) => p.name === name)?.id ?? "";
+    expect(l.state.players[idOf("Casey")]).toMatchObject({
+      waiting: false,
+      teamId: null,
+    });
+    ok(l.act(gm, { type: "addToTeam", teamId: "team-1", playerId: gm }));
     ok(
       l.act(gm, {
         type: "addToTeam",
         teamId: "team-2",
-        playerId: casey,
+        playerId: l.id("Blair"),
       }),
     );
-    expect(l.state.players[casey]).toMatchObject({
-      waiting: false,
-      teamId: "team-2",
+    ok(l.act(gm, { type: "nameTeam", teamId: "team-1", name: "Nuns" }));
+    ok(l.act(gm, { type: "nameTeam", teamId: "team-2", name: "Monks" }));
+    // Casey is connected and unplaced, so teams can't be final yet.
+    expect(l.act(gm, { type: "confirmTeams" })).toMatchObject({ ok: false });
+    ok(
+      l.act(gm, {
+        type: "addToTeam",
+        teamId: "team-2",
+        playerId: idOf("Casey"),
+      }),
+    );
+    ok(l.act(gm, { type: "confirmTeams" }));
+    ok(l.act(null, { type: "join", name: "Drew" }));
+    expect(l.state.players[idOf("Drew")]?.waiting).toBe(true);
+    expect(checkInvariants(l.state)).toEqual([]);
+  });
+  it("spins the wheel for whoever's left, keeping teams balanced (D34)", () => {
+    const l = lobbyWith("Alex", "Blair", "Casey", "Drew", "Emery");
+    const gm = l.id("Alex");
+    expect(l.act(gm, { type: "spinRest" })).toMatchObject({
+      ok: false,
+      code: "WRONG_PHASE",
     });
+    ok(l.act(gm, { type: "startTeams", mode: "manual" }));
+    ok(l.act(gm, { type: "addToTeam", teamId: "team-1", playerId: gm }));
+    expect(l.act(l.id("Blair"), { type: "spinRest" })).toMatchObject({
+      ok: false,
+      code: "FORBIDDEN",
+    });
+    ok(l.act(gm, { type: "spinRest" }, () => 0));
+    expect(l.state.draft).toMatchObject({ mode: "manual", stage: "spinning" });
+    expect(l.state.lastDraw?.candidates.map((c) => c.name)).toEqual([
+      "Blair",
+      "Casey",
+      "Drew",
+      "Emery",
+    ]);
+    // GM edits wait for the wheel.
+    expect(
+      l.act(gm, {
+        type: "addToTeam",
+        teamId: "team-1",
+        playerId: l.id("Blair"),
+      }),
+    ).toMatchObject({ ok: false });
+    expect(l.act(gm, { type: "spinRest" })).toMatchObject({ ok: false });
+    finishDraft(l);
+    const sizes = l.state.teamOrder.map(
+      (id) => l.state.teams[id]?.memberIds.length,
+    );
+    expect(sizes.sort()).toEqual([2, 3]);
+    expect(l.state.teams["team-1"]?.captainId).toBe(gm);
+    expect(l.act(gm, { type: "spinRest" })).toMatchObject({
+      ok: false,
+      code: "INVALID",
+    });
+    expect(checkInvariants(l.state)).toEqual([]);
   });
   it("defaults to the wheel and rejects unknown modes", () => {
     const l = lobbyWith("Alex", "Blair");

@@ -25,18 +25,18 @@ export function TeamBoard({
     (p) => !p.teamId && !p.waiting && p.status === "active",
   );
   const waiting = view.players.filter((p) => p.waiting);
-  const heading = manual
-    ? "Pick the teams"
-    : complete
-      ? "Name your teams"
-      : "Wheel of names";
-  const subheading = manual
-    ? placing
-      ? "Put each player on a team. The first on each team is captain and names it."
-      : `${gm?.name ?? "The game master"} is picking the teams. The first on each team is captain and names it.`
-    : complete
-      ? "Captains: save a name for your team."
-      : "Players are assigned one at a time. The first on each team is captain.";
+  const heading = !complete
+    ? "Wheel of names"
+    : manual
+      ? "Pick the teams"
+      : "Name your teams";
+  const subheading = !complete
+    ? "Players are assigned one at a time. The first on each team is captain."
+    : manual
+      ? placing
+        ? "Put each player on a team, or spin the wheel for the rest. The first on each team is captain and names it."
+        : `${gm?.name ?? "The game master"} is picking the teams. The first on each team is captain and names it.`
+      : "Captains: save a name for your team.";
   const ready =
     complete &&
     !unassigned.length &&
@@ -119,7 +119,10 @@ export function TeamBoard({
   );
 }
 
-/** GM only: everyone connected who isn't on a team, one tap per team (D32). */
+/**
+ * GM only: everyone connected who isn't on a team, one tap per team (D32),
+ * or the wheel for all of them at once (D34).
+ */
 function PlacementPool({ view, send }: { view: LobbyView; send: Send }) {
   const people = view.players.filter((p) => !p.teamId && p.status === "active");
   if (!people.length) return null;
@@ -155,6 +158,20 @@ function PlacementPool({ view, send }: { view: LobbyView; send: Send }) {
           </li>
         ))}
       </ul>
+      <div className="placement-spin">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => send({ type: "spinRest" })}
+        >
+          Spin the wheel for{" "}
+          {people.length === 1 ? people[0]?.name : "the rest"}{" "}
+          <span aria-hidden>↻</span>
+        </button>
+        <p className="fine-print">
+          Each spin fills the smallest team, so sides stay even.
+        </p>
+      </div>
     </section>
   );
 }

@@ -118,8 +118,6 @@ export function checkInvariants(state: LobbyState): string[] {
   if (state.draft) {
     if (state.draft.mode !== "wheel" && state.draft.mode !== "manual")
       err("invalid team mode");
-    if (state.draft.mode === "manual" && state.draft.stage !== "complete")
-      err("manual teams with a running wheel");
     if (state.draft.stage !== "complete" && state.phase !== "teams")
       err("draft running outside teams");
     if (
@@ -239,6 +237,22 @@ function checkGame(state: LobbyState, err: (msg: string) => void) {
     err("invalid member cursor");
   if (new Set(game.acknowledged).size !== game.acknowledged.length)
     err("duplicate acknowledgement");
+  if (
+    new Set(game.skipped).size !== game.skipped.length ||
+    game.skipped.some((id) => !state.players[id])
+  )
+    err("invalid skipped list");
+  if (
+    game.upNext !== null &&
+    (!state.players[game.upNext] || game.skipped.includes(game.upNext))
+  )
+    err("invalid up-next player");
+  if (
+    Object.entries(game.playerScores).some(
+      ([id, n]) => !state.players[id] || !Number.isInteger(n) || n < 0,
+    )
+  )
+    err("invalid player scores");
 
   const turn = game.turn;
   const live = state.phase === "turnActive" || state.phase === "turnReview";

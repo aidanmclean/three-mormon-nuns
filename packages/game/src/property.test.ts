@@ -22,6 +22,7 @@ const KINDS = [
   "addToTeam",
   "removeFromTeam",
   "confirmTeams",
+  "spinRest",
   "draftTick",
   "submitPhrase",
   "deletePhrase",
@@ -134,6 +135,7 @@ function toAction(
     },
     removeFromTeam: { type: "removeFromTeam", teamId, playerId: target },
     confirmTeams: { type: "confirmTeams" },
+    spinRest: { type: "spinRest" },
     submitPhrase: { type: "submitPhrase", text: s.name },
     deletePhrase: {
       type: "deletePhrase",

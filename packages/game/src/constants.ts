@@ -11,7 +11,7 @@ export const CODE_LENGTH = 4;
 export const PROTOCOL_VERSION = 6;
 
 /** Bump whenever the persisted LobbyState shape changes (§6.5). */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** Fixed by the game rules (§1.2). */
 export const ROUNDS = 3;

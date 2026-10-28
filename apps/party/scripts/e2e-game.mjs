@@ -248,6 +248,30 @@ const next = await screen.until(
 );
 check(next, "rotation moves on to the other team");
 
+// Skip and go next (D35): the turn passes to a teammate, then comes back.
+const skippedId = next.game.turn.playerId;
+gm.send({ type: "skipTurn" });
+const passed = await screen.until(
+  (v) =>
+    v.phase === "turnReady" &&
+    v.game.turn.playerId !== skippedId &&
+    v.game.skipped.includes(skippedId),
+);
+check(
+  passed?.game.turn.teamId === next.game.turn.teamId,
+  "GM skips a turn: a teammate takes it, and the skip is remembered",
+);
+gm.send({ type: "upNext", playerId: skippedId });
+check(
+  await screen.until(
+    (v) =>
+      v.game.turn?.playerId === skippedId &&
+      v.game.skipped.length === 0 &&
+      v.game.upNext === skippedId,
+  ),
+  "GM sends the skipped player up: they take the turn after all",
+);
+
 // GM controls: pause, add time, resume, end turn
 gm.send({ type: "startTurn" });
 await screen.until((v) => v.phase === "turnActive");
@@ -294,6 +318,13 @@ const results = await screen.until((v) => v.phase === "results", 10000);
 check(
   results?.game.winners.length >= 1,
   "after round 3 the TV shows the winner(s)",
+);
+const podium = results?.game.leaders ?? [];
+check(
+  podium.length >= 1 &&
+    podium[0].place === 1 &&
+    podium.every((l, i) => i === 0 || l.points <= podium[i - 1].points),
+  "the results podium ranks the top describers",
 );
 
 gm.send({ type: "playAgain" });

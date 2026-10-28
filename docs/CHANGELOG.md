@@ -4,6 +4,20 @@ Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE
 
 ## 2026-10-27
 
+- **Added:** skip a turn and send someone up next ([D35](./ARCHITECTURE.md#d35-the-gm-can-skip-whoever-is-up-and-send-a-skipped-player-up-next)).
+  - Before a turn starts, the GM can skip whoever is up (washroom, or they'd rather pass). Their teammate plays with the same time.
+  - The GM's phone lists skipped players with **Go next**, which gives them their team's next turn, or this one if their team is up, without costing anyone their place.
+- **Added:** spin the wheel for whoever's left ([D34](./ARCHITECTURE.md#d34-until-teams-are-final-everyone-unplaced-is-in-one-pool-the-gm-can-spin-the-wheel-for-it)). Works in manual mode or after a wheel, and keeps sides balanced.
+- **Changed:** people who join (or come back) before teams are final join the pool of unplaced players instead of the waiting room; a running wheel draws them too (D34, superseding D28's late-arrival rule).
+- **Added:** a top-three podium of describers on the results screen, TV and phones ([D36](./ARCHITECTURE.md#d36-per-player-points-and-a-top-three-podium-on-the-results-screen)). Points go to whoever described; ties share a pedestal.
+- **Added:** CI job `e2e` runs both WebSocket suites against a local `wrangler dev` worker. No Cloudflare account needed.
+- **Fixed:** stale CSS after editing `globals.css` while `next dev` was stopped. Turbopack's file-system cache is now off for dev and build ([D37](./ARCHITECTURE.md#d37-turbopacks-file-system-cache-is-off-for-dev-and-build)).
+- **Changed:** schema v8 (v7 rooms reset). Protocol unchanged at v6; the new messages and view fields are additive.
+- **Verified:**
+  - 95 unit/property tests.
+  - 64 lobby and 30 game WebSocket checks, run the way the CI job runs them.
+  - Headless Firefox: the GM placed a player, spun for the rest (3/2), skipped a turn to a teammate, sent the skipped player back up, and finished with a podium on the TV and phone.
+
 - **Added:** manual team picking ([D32](./ARCHITECTURE.md#d32-manual-team-picking-as-an-alternative-to-the-wheel)).
   - Before **Everyone’s in**, the GM chooses **Spin the wheel** or **Pick them myself**.
   - In manual mode there's no wheel. The GM places each player from a **Not on a team yet** list, and the first player placed on a team is its captain.

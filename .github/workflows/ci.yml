@@ -27,3 +27,33 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm --filter @tmn/web build
+
+  # WebSocket end-to-end checks against a real local worker (Miniflare via
+  # `wrangler dev`). Runs entirely on the runner: no Cloudflare account or
+  # secrets. See docs/TESTING.md → Automated checks.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start the party worker
+        run: |
+          pnpm --filter @tmn/party dev > wrangler.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null http://localhost:8787/; then exit 0; fi
+            sleep 1
+          done
+          echo "The worker didn't start within 60 s:"; cat wrangler.log; exit 1
+      - run: pnpm --filter @tmn/party e2e
+      - run: pnpm --filter @tmn/party e2e:game
+      - name: Worker log
+        if: failure()
+        run: cat wrangler.log

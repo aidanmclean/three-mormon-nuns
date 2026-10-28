@@ -8,6 +8,7 @@ import {
   EMOTE_ICONS,
   EMOTE_LABELS,
   endedText,
+  Podium,
   playerName,
   RoundBanner,
   Scoreboard,
@@ -125,6 +126,15 @@ export function GameScreen({
                 Start {mine ? "my" : up ? `${up}'s` : "the"} turn{" "}
                 <span aria-hidden>→</span>
               </button>
+              {turn && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => send({ type: "skipTurn" })}
+                >
+                  Skip {mine ? "my" : `${up}'s`} turn
+                </button>
+              )}
               {turn && <TimeAdjust send={send} />}
               {game.canRestartPrevious && (
                 <RestartPrevious view={view} send={send} />
@@ -292,6 +302,7 @@ export function GameScreen({
         <div className="paper-panel game-card">
           <p className="eyebrow">FINAL SCORES</p>
           <h2 className="game-title">{winnerText(view)}</h2>
+          <Podium view={view} />
           {amGm ? (
             <div className="game-actions">
               <button
@@ -313,7 +324,53 @@ export function GameScreen({
         </div>
       )}
 
+      {amGm && view.phase !== "results" && (
+        <SkippedList view={view} send={send} />
+      )}
+
       {!mine && view.phase !== "results" && <EmoteBar send={send} />}
+    </section>
+  );
+}
+
+/** GM: who was skipped, and sending them up when they're back (D35). */
+function SkippedList({ view, send }: { view: LobbyView; send: Send }) {
+  const game = view.game;
+  if (!game || (!game.skipped.length && !game.upNext)) return null;
+  const upNext = view.players.find((p) => p.id === game.upNext);
+  return (
+    <section className="paper-panel skipped-list">
+      <div className="panel-heading">
+        <h2>Skipped</h2>
+      </div>
+      {upNext && (
+        <p className="fine-print">
+          {upNext.name} takes {teamName(view, upNext.teamId ?? undefined)}'s
+          next turn.
+        </p>
+      )}
+      <ul>
+        {game.skipped.map((id) => {
+          const p = view.players.find((player) => player.id === id);
+          if (!p) return null;
+          return (
+            <li key={id}>
+              <span>
+                {p.name}
+                {p.status !== "active" && <small> · offline</small>}
+              </span>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={p.status !== "active"}
+                onClick={() => send({ type: "upNext", playerId: id })}
+              >
+                Go next
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

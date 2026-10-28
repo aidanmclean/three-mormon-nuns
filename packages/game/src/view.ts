@@ -69,6 +69,14 @@ export interface GameView {
   canRestartPrevious: boolean;
   /** Teams with the top score once the game is over; more than one is a tie. */
   winners: TeamId[];
+  /** Skipped players still owed a turn, and the one sent up next (D35). */
+  skipped: PlayerId[];
+  upNext: PlayerId | null;
+  /**
+   * Once the game is over: everyone who placed 1st–3rd by phrases guessed
+   * while they described (D36). Ties share a place, so places can repeat.
+   */
+  leaders: { playerId: PlayerId; points: number; place: 1 | 2 | 3 }[];
 }
 
 export interface LobbyView {
@@ -227,5 +235,25 @@ function gameView(
       state.phase === "results"
         ? state.teamOrder.filter((id) => (game.scores[id] ?? 0) === top)
         : [],
+    skipped: [...game.skipped],
+    upNext: game.upNext,
+    leaders: state.phase === "results" ? leaders(state, game.playerScores) : [],
   };
+}
+
+/** Standard competition ranking (1, 1, 3), top three places, points > 0. */
+function leaders(
+  state: LobbyState,
+  scores: Record<PlayerId, number>,
+): GameView["leaders"] {
+  const ranked = Object.entries(scores)
+    .filter(([id, points]) => points > 0 && state.players[id])
+    .sort(([, a], [, b]) => b - a);
+  const out: GameView["leaders"] = [];
+  ranked.forEach(([playerId, points], i) => {
+    const firstWithScore = ranked.findIndex(([, p]) => p === points);
+    const place = (i === firstWithScore ? i : firstWithScore) + 1;
+    if (place <= 3) out.push({ playerId, points, place: place as 1 | 2 | 3 });
+  });
+  return out;
 }

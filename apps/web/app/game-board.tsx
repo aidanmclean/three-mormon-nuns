@@ -4,6 +4,7 @@ import type { LobbyView } from "@tmn/game";
 import {
   clockText,
   endedText,
+  Podium,
   playerName,
   RoundBanner,
   Scoreboard,
@@ -113,6 +114,7 @@ export function GameBoard({
           <>
             <p className="eyebrow">FINAL SCORES</p>
             <h1 className="tv-title">{winnerText(view)}</h1>
+            <Podium view={view} big />
           </>
         )}
       </div>

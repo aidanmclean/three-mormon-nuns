@@ -44,7 +44,9 @@ Use six players and two teams for the first run:
 1. In a fresh room, choose **Pick them myself** on Alex’s phone, then press **Everyone’s in**.
 2. Every screen shows **Pick the teams** with empty team cards and no wheel. Only Alex’s phone has the **Not on a team yet** list, with one button per team for each player.
 3. Tap a team for each player. The first player placed on a team gets **CAPTAIN** and can save the team name. Other phones can’t move anyone.
-4. **Start writing phrases** unlocks once everyone connected is on a team, every team has a connected member, and every team has a saved name. Late arrivals wait in the list marked “joined late”.
+4. **Spin the wheel for the rest** (under the list) runs the wheel for everyone still unplaced. Each spin fills the smallest team, so sides stay even. It also works after a normal wheel if someone is left over.
+5. Join a new phone while teams are being made: they appear in **Not on a team yet**, not the waiting room. If the wheel is spinning, it draws them too.
+6. **Start writing phrases** unlocks once everyone connected is on a team, every team has a connected member, and every team has a saved name. Anyone who joins after that waits for the GM.
 
 ## Walk through a game
 
@@ -56,9 +58,10 @@ Continue from the writing walkthrough. Two or three phrases each keeps the round
 4. On the active phone, press **Got it** (+1, new phrase) and **Back** (−1, the previous phrase returns). The GM can **Pause**, change the time with **−10 s / +10 s** while paused, **Resume**, **End turn** and **Reveal** (shows the GM the current phrase).
 5. Let the clock run out. The server ends the turn even if every phone is asleep. Review shows the guessed phrases on every screen. The active phone can step **Back** and **Forward** over the last guesses, and sees the phrase in play when time ran out as **NOT COUNTED**. The GM presses **Proceed**: the points are banked and the next team is up.
 6. Guess the whole pile in one turn. The clock stops, and after **Proceed** round 2 (“Charades”) opens with the same player keeping the time they had left. Round 3 is “One word”.
-7. **Restart previous turn** on the GM’s phone (before the next turn starts) undoes the last Proceed and replays that turn with the chosen time.
-8. Tap emotes on any phone. They pop up at random spots on the host, each a different size and tilt.
-9. After round 3 the results show the winner, or “It’s a tie” for equal top scores. **Play again** returns everyone connected to the lobby with fresh teams; disconnected players are dropped and can rejoin by name.
+7. **Skip a turn:** before a turn starts, the GM taps **Skip …’s turn**. The next teammate is up with the same time (if nobody else on the team is connected, the other team plays). The skipped player appears under **Skipped** on the GM’s phone. Tap **Go next** when they’re back: they take their team’s next turn (or this one, if their team is up), and the teammate they replaced keeps their place.
+8. **Restart previous turn** on the GM’s phone (before the next turn starts) undoes the last Proceed and replays that turn with the chosen time.
+9. Tap emotes on any phone. They pop up at random spots on the host, each a different size and tilt.
+10. After round 3 the results show the winner, or “It’s a tie” for equal top scores, and a podium of the top three describers (the points go to whoever was describing; ties share a pedestal). **Play again** returns everyone connected to the lobby with fresh teams; disconnected players are dropped and can rejoin by name.
 
 ## Failure and permission checks
 
@@ -67,7 +70,7 @@ Continue from the writing walkthrough. Two or three phrases each keeps the round
 - **Refresh mid-spin:** reload the host or a phone while the wheel is moving. The draft continues from server state, without a new result or duplicated member.
 - **GM disconnect:** disconnect Alex and wait 20–25 seconds. GM passes to the next connected player. Alex’s return does not automatically take GM back.
 - **Disconnected winner:** disconnect or kick a player while they are on the wheel. They are skipped once the server knows they are inactive/removed, and the remaining draft continues. Abrupt phone loss takes the normal presence-detection interval to become known.
-- **Late arrival:** join a new player after **Everyone’s in**. They wait outside the frozen roster. After the wheel ends, the GM can move them onto a team. During writing or mid-game, a waiting player shows **Put on …** buttons on the GM’s phone; once placed, they join that team’s rotation.
+- **Late arrival:** join a new player after **Everyone’s in** but before **Start writing phrases**. They land in the pool of unplaced players (drawn by a spinning wheel, or placed by the GM). After teams are final they wait instead: during writing or mid-game the GM’s phone shows **Put on …** buttons for them, and once placed they join that team’s rotation.
 - **Active player drops mid-turn:** disconnect the active phone during a turn. After 20–25 seconds the turn goes to review (“left the game”); the guessed phrases still count once the GM proceeds. Kicking the active player does the same. A kicked player’s phrases stay in the pile.
 - **Game server unavailable:** stop only the party worker and try a fresh room. After eight seconds the screen shows connection help and **Try again**. Restart the worker: the pending code and settings are retained.
 - **Cavan permissions:** only the GM can make or clear Cavan or approve/reject phrases. Designating Cavan after they’ve written sends their phrases back for vetting; clearing Cavan approves anything pending.
@@ -89,8 +92,27 @@ pnpm --filter @tmn/party e2e
 pnpm --filter @tmn/party e2e:game
 ```
 
-The two `e2e` commands need the running party worker. `e2e` takes roughly 40 seconds and exercises real WebSockets, including host mirrors, role handoff, timed server wheel progression, captain naming, GM corrections, late arrivals, phrase privacy and deletion. `e2e:game` (about a minute) plays a whole game: Cavan vetting, the round 1 intro, phrase secrecy mid-turn, a pile-out carried into round 2, the server clock ending a turn, pause/add time/end turn, emotes, results and Play again. `PARTY_HOST` overrides the worker address when needed. Unit/property tests freeze reducer inputs and check invariants, including balanced assignments and the injected clock/RNG; `game.property.test.ts` throws random turn buttons, GM controls, clock jumps and disconnects at a started game.
+The two `e2e` commands need the running party worker (`pnpm dev`, or just `pnpm --filter @tmn/party dev`). `e2e` takes roughly 40 seconds and exercises real WebSockets, including host mirrors, role handoff, timed server wheel progression, captain naming, GM corrections, late arrivals, phrase privacy and deletion. `e2e:game` (about a minute) plays a whole game: Cavan vetting, the round 1 intro, phrase secrecy mid-turn, a pile-out carried into round 2, the server clock ending a turn, pause/add time/end turn, emotes, results and Play again. `PARTY_HOST` overrides the worker address when needed. Unit/property tests freeze reducer inputs and check invariants, including balanced assignments and the injected clock/RNG; `game.property.test.ts` throws random turn buttons, GM controls, clock jumps and disconnects at a started game.
 
 The six-player browser flow is also checked with independently controlled frames: all screens receive the draft, captain names and writing transition; a phone reload survives a spin; all players can fill their quotas; host/other players cannot see private phrases; and disconnect/reconnect retains identity and phrases.
 
 A full game was also played in headless Firefox with a real host screen and a phone driven through its UI: writing, the round intro, a turn (countdown, Got it, review), results and emotes on the TV.
+
+## End-to-end checks in CI
+
+`.github/workflows/ci.yml` has an `e2e` job next to the usual `check` job. On every push to `main` and every PR it:
+
+1. installs dependencies,
+2. starts the party worker in the background with `pnpm --filter @tmn/party dev`. This is `wrangler dev`, which runs the Worker and Durable Objects locally in Miniflare, so it needs no Cloudflare account or secrets,
+3. waits up to 60 s for port 8787,
+4. runs `pnpm --filter @tmn/party e2e` and then `pnpm --filter @tmn/party e2e:game`,
+5. prints the worker log if anything failed.
+
+To add a new end-to-end check, put it in one of the two scripts (or add a new `scripts/*.mjs` plus a `package.json` script and a `run:` step in the job). Each script picks a random lobby code, so checks don't interfere. The job shows up in the **Actions** tab on GitHub once the workflow is pushed.
+
+To reproduce the CI run locally:
+
+```sh
+pnpm --filter @tmn/party dev &   # or pnpm dev
+pnpm --filter @tmn/party e2e && pnpm --filter @tmn/party e2e:game
+```

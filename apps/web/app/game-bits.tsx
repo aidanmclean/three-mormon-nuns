@@ -128,6 +128,52 @@ export function winnerText(view: LobbyView): string {
 }
 
 /** Floating reactions over the whole TV screen, in every phase (D31). */
+const MEDALS = { 1: "🥇", 2: "🥈", 3: "🥉" } as const;
+const PLACES = { 1: "First", 2: "Second", 3: "Third" } as const;
+
+/**
+ * The top three describers on pedestals (D36): 2nd, 1st, 3rd from left to
+ * right. Ties share a pedestal, so a place can hold several names or none.
+ */
+export function Podium({
+  view,
+  big = false,
+}: {
+  view: LobbyView;
+  big?: boolean;
+}) {
+  const leaders = view.game?.leaders ?? [];
+  if (!leaders.length) return null;
+  return (
+    <figure className={`podium ${big ? "podium-big" : ""}`}>
+      <figcaption className="eyebrow">TOP DESCRIBERS</figcaption>
+      <ol className="podium-steps">
+        {([1, 2, 3] as const).map((place) => {
+          const here = leaders.filter((l) => l.place === place);
+          return (
+            <li key={place} className={`podium-step place-${place}`}>
+              <div className="podium-names">
+                {here.map((l) => (
+                  <span key={l.playerId} className="podium-name">
+                    {playerName(view, l.playerId)}
+                    <small className="podium-points">
+                      {l.points} {l.points === 1 ? "phrase" : "phrases"}
+                    </small>
+                  </span>
+                ))}
+              </div>
+              <div className="podium-block">
+                <span aria-hidden>{MEDALS[place]}</span>
+                <span className="sr-only">{PLACES[place]} place</span>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </figure>
+  );
+}
+
 /** A repeatable 0–1 value for one emote's seed and one property. */
 function noise(seed: number, salt: number) {
   let t = (seed + Math.imul(salt, 0x9e3779b9)) >>> 0;

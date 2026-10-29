@@ -96,12 +96,10 @@ export default function HowToPlay() {
           <h2 id="rules-tips">Good to know</h2>
           <ul>
             <li>
-              Pay attention in round 1. By round 3, one word is enough because
-              everyone has heard the phrases twice.
+              Pay attention to the phrases that are guessed. 
             </li>
             <li>
-              Lost your connection? Open the game again and type the same name:
-              you’re back on your team.
+              Lost your connection? Open the game again and type the same name you used to rejoin.
             </li>
             <li>
               Tap the stickers at the bottom of your phone (laugh, clap,

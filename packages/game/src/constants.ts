@@ -20,11 +20,11 @@ export const ROUNDS = 3;
 export const ROUND_RULES = [
   {
     title: "Describe it",
-    rules: "Describe the phrase without saying any of the words in it.",
+    rules: "Describe the phrase without saying any of the words in it, or making any gestures.",
   },
   {
     title: "Charades",
-    rules: "Act it out. No talking.",
+    rules: "Act it out. No talking. Not even a peep.",
   },
   {
     title: "One word",
@@ -35,9 +35,9 @@ export const ROUND_RULES = [
 export const MAX_MESSAGE_BYTES = 4096;
 /** Short enough that every name fits on the TV and a phone row (D39). */
 export const NAME_MAX_LEN = 16;
-export const PHRASE_MAX_LEN = 80;
+export const PHRASE_MAX_LEN = 50;
 export const WHEEL_SPIN_MS = 2_600;
-export const WHEEL_REVEAL_MS = 900;
+export const WHEEL_REVEAL_MS = 1000;
 /** 3-2-1 on the active player's phone before the clock starts (D31). */
 export const TURN_COUNTDOWN_MS = 3_000;
 /** Largest single "add/remove time" step, and bounds for any turn's time (D31). */

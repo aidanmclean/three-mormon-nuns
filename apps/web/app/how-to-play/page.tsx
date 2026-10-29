@@ -95,11 +95,10 @@ export default function HowToPlay() {
         <section className="rules-tips" aria-labelledby="rules-tips">
           <h2 id="rules-tips">Good to know</h2>
           <ul>
+            <li>Pay attention to the phrases that are guessed.</li>
             <li>
-              Pay attention to the phrases that are guessed. 
-            </li>
-            <li>
-              Lost your connection? Open the game again and type the same name you used to rejoin.
+              Lost your connection? Open the game again and type the same name
+              you used to rejoin.
             </li>
             <li>
               Tap the stickers at the bottom of your phone (laugh, clap,

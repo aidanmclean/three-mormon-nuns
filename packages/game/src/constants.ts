@@ -20,7 +20,8 @@ export const ROUNDS = 3;
 export const ROUND_RULES = [
   {
     title: "Describe it",
-    rules: "Describe the phrase without saying any of the words in it, or making any gestures.",
+    rules:
+      "Describe the phrase without saying any of the words in it, or making any gestures.",
   },
   {
     title: "Charades",

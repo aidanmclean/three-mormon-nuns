@@ -1,3 +1,4 @@
+import type { BackdoorId } from "./backdoors";
 import type { Config } from "./config";
 import { ROUND_RULES } from "./constants";
 import type {
@@ -97,6 +98,8 @@ export interface LobbyView {
   game: GameView | null;
   /** The viewer's own player id, or null for the host screen and unjoined sockets. */
   you: PlayerId | null;
+  /** Backdoors the viewer opened this game; empty for everyone else (D48). */
+  backdoors: BackdoorId[];
 }
 
 /**
@@ -178,6 +181,9 @@ export function viewFor(state: LobbyState, viewer: PlayerId | null): LobbyView {
       : [],
     game: gameView(state, viewer, isGm),
     you: viewer !== null && viewer in state.players ? viewer : null,
+    // Never anyone else's, and never the TV's (D48).
+    backdoors:
+      viewer !== null ? [...(state.players[viewer]?.backdoors ?? [])] : [],
   };
 }
 

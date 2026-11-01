@@ -114,6 +114,8 @@ export type ServerMessage =
   | { type: "error"; code: ErrorCode; message: string }
   /** A reaction from a player, broadcast to every socket (D31). */
   | { type: "emote"; playerId: string; name: string; kind: EmoteKind }
+  /** Good news for this phone only, e.g. a backdoor opening (D48). */
+  | { type: "notice"; message: string }
   /** Sent right before the server closes this socket on purpose. */
   | { type: "bye"; reason: ByeReason }
   /** Protocol version mismatch: the client should reload the page (§6.8). */

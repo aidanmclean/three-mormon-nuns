@@ -1,3 +1,4 @@
+import { BACKDOOR_IDS } from "./backdoors";
 import { isValidCode } from "./code";
 import { ConfigSchema } from "./config";
 import {
@@ -44,6 +45,12 @@ export function checkInvariants(state: LobbyState): string[] {
       err(`player ${id} shares the screen token`);
     if (p.teamId !== null && !state.teams[p.teamId])
       err(`missing team for ${id}`);
+    if (
+      !Array.isArray(p.backdoors) ||
+      new Set(p.backdoors).size !== p.backdoors.length ||
+      p.backdoors.some((b) => !BACKDOOR_IDS.includes(b))
+    )
+      err(`invalid backdoors for ${id}`);
   }
 
   // The GM is the one in control (D18): there must be one as soon as anyone

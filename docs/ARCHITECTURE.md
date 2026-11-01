@@ -100,7 +100,7 @@ These were added after the design board and are the main drivers of [§5.6](#56-
 
 ### 1.4 Fun extras (from the board, not yet designed)
 
-- **Backdoors:** a prank that rewrites every phrase, and a reveal-all. These are intentional features, not vulnerabilities. They must be very hard or impossible to trigger for anyone who doesn't already know how (Q6).
+- **Backdoors:** intentional features, not vulnerabilities. They must be very hard or impossible to trigger for anyone who doesn't already know how (Q6). ✅ The mechanism is built (D48): a secret phrase typed during writing unlocks a perk for that player alone. The first is the Alex emote. Still ideas: a prank that rewrites every phrase, and a reveal-all.
 - **Periodic table easter egg:** show the element when a phrase is an element name.
 - **Tomato button**, and joke "microtransactions".
 - **Personalization** during join (optional "phase 3" on the board).
@@ -1116,6 +1116,56 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 - `Config` gains a required field, so protocol 8 and schema 10. Stored lobbies reset; deploy party before web.
 - A host config saved in the browser by an older build is merged over `DEFAULT_CONFIG` before `create`, so it still validates.
 
+### D48: Backdoors are secret phrases typed during writing; the first unlocks the Alex emote
+
+**Status:** Accepted · 2026-10-29 (answers Q6's trigger; extends D30, D31, D40)
+
+**Decision:**
+
+- **Trigger.** During writing, a player types a backdoor's secret phrase into the normal phrase box.
+  - It matches ignoring case and spaces.
+  - The server checks it in `phraseAction` before any phrase validation.
+- **A code is never a phrase.**
+  - Nothing goes in the pile, and no quota is used.
+  - Nothing reaches the GM's queue, even when Cavan types it (no pending phrase, and Cavan's counts don't change).
+  - The player's `Player.backdoors` gains the backdoor's id, and that player gets a private `notice` ("Backdoor unlocked: …").
+  - Typing it again only repeats the notice.
+- **Nobody else can tell.**
+  - `viewFor` puts `backdoors` only in the player's own view. The GM, other phones and the TV always get `[]`.
+  - The `notice` server message goes only to that player's sockets.
+  - Phrase counts, the moderation queue and the pile are untouched, so the GM has nothing to notice.
+- **Secrecy of the codes (Q6, §6.9).** The codes and unlock messages live in `packages/game/src/backdoor-codes.ts`.
+  - Only the reducer imports that file, and the package index doesn't export it.
+  - The web build is checked so that its JavaScript contains neither the codes nor the unlock text.
+  - The public half (`backdoors.ts`) only lists the backdoor ids and which emotes they unlock.
+- **It lasts the game.** Unlocks live on the player record, so a reconnect keeps them, and **Play again** clears them. After writing, the phrase box is gone, so a code can only be typed during writing.
+- **The first backdoor: `alexEmote`.**
+  - It adds an `alex` emote to the phone's emote bar, using `apps/web/public/alex_emote.png` (shown with `next/image`, loaded eagerly because emotes start invisible).
+  - It pops up on the TV like any emote, with the sender's name.
+  - The server refuses `emote { kind: "alex" }` from anyone without the backdoor (`FORBIDDEN`). The phone only shows the button to players who have it.
+- **Phones:** the toast has a "good" tone (blue edge, spark icon) for notices. The phrase box clears once the backdoor opens.
+
+**Why:** the user asked for backdoors "activated for the user (gamemaster cannot see if users have activated backdoors) by certain codephrases being entered in phrase entering phase". They specified:
+
+- "if cavan enters a codephrase it doesnt show up on the gamemasters phone";
+- the code "is not submitted as a phrase but it unlocks that backdoor for them for the duration of the game and shows a toast";
+- "first one will be 'alexemote' which will give the user an extra emote … only those that entered the passphrase that game can use the emote".
+
+**Alternatives:**
+
+- Checking codes on the phone: the codes would ship in the JavaScript, and a phone could fake an unlock.
+- Hashing the codes: they would stay hidden from anyone reading the repo, but adding a backdoor would need a hashing step. Keeping them out of the browser bundle meets Q6.
+- A new client message for codes: an unusual message is easier to spot than a phrase, and the phrase box is already there.
+
+**Consequences:**
+
+- `PROTOCOL_VERSION` 9: a new emote kind would crash an older TV page, so old pages must reload. `SCHEMA_VERSION` 11, for `Player.backdoors`. Deploy party before web; stored lobbies reset.
+- New effect `notice`, and new server message `{ type: "notice", message }`. An invariant checks that each player's backdoors are unique, known ids.
+- To add a backdoor: add its id to `BACKDOOR_IDS`, its code and unlock text to `backdoor-codes.ts`, then wire what it does.
+- Tests:
+  - `backdoors.test.ts` covers the unlock, secrecy from the GM, other players and the TV, Cavan, the quota, phase rules, the locked emote, reconnects and Play again.
+  - The game e2e checks the private notice, that no other client sees a trace, and the locked and unlocked emote against the real server.
+
 ---
 
 ## 4. What is implemented today
@@ -1152,7 +1202,9 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ✅ **Show guessed phrases** (2026-10-28; D47). A house rule, off by default, that lists a turn's guessed phrases to the whole room in review. Off, everyone but the describer sees a stamped tally instead.
 
-Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransactions) and the profanity filter.
+✅ **Backdoors** (2026-10-29; D48). A secret phrase typed during writing unlocks a perk for that player only, and the GM and the TV can't tell. The first unlocks the Alex emote.
+
+Still 🚧: the rest of the fun extras in §1.4 (more backdoors, periodic table, microtransactions) and the profanity filter.
 
 ### `packages/game` (`@tmn/game`)
 
@@ -1162,7 +1214,7 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 | `code.ts`       | `normalizeCode`, `isValidCode`, `randomCode`.                                                                                                                                                                                                                                                                                                        |
 | `names.ts`      | `cleanName` (NFC; strips control and format characters such as zero-width spaces and bidi overrides; collapses whitespace), `nameKey` (case-insensitive identity) and `validateName`.                                                                                                                                                                |
 | `config.ts`     | `ConfigSchema` (zod, ranges from `CONFIG_RANGES`) and `DEFAULT_CONFIG` (60 s turns, 2 teams, 3 phrases each, up to 3 words per phrase, 20 players, guessed phrases hidden (D47); no moderation setting: Cavan is a role, D30).                                                                                                                       |
-| `types.ts`      | LobbyState v10: players, GM and Cavan, teams with saved-name flags, draft mode (wheel/manual, D32) and queue/stage/deadline, public spin snapshots, private phrase records with status, the game (round, pile, team and player scores, rotation cursors, players owed a turn after a skip (D41), turn, previous-turn snapshot) and screen key.       |
+| `types.ts`      | LobbyState v11: players, GM and Cavan, teams with saved-name flags, draft mode (wheel/manual, D32) and queue/stage/deadline, public spin snapshots, private phrase records with status, the game (round, pile, team and player scores, rotation cursors, players owed a turn after a skip (D41), turn, previous-turn snapshot) and screen key.       |
 | `protocol.ts`   | Strict bounded create/screen/join, GM controls, startTeams, nameTeam, addToTeam/removeFromTeam, confirmTeams, submitPhrase/deletePhrase, Cavan moderation (setCavan/approvePhrase/rejectPhrase), game actions (startGame … playAgain) and emotes. Client wheel/timer results are never accepted.                                                     |
 | `game.ts`       | The game loop (D31): `startGame`, rotation (`prepare`), turn actions for the active player (`next`/`back`/`forward`), round intros (`acknowledge`, `beginRound`), GM clock controls, `proceed` with the D17 carry-over, `restartPrevTurn`, `playAgain`, the `_turnTick` deadline and `normalizeGame` (dropped/kicked players, auto-start of intros). |
 | `reducer.ts`    | Creation, joins, roles, GM actions, private writing, normalization and server draft ticks; `draft.ts` owns spin selection/timing and team edits, and `phrases.ts` owns author-only phrase operations; `phrases.ts` also handles Cavan moderation, and `game.ts` the game loop.                                                                       |
@@ -1203,7 +1255,7 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 - kick
 - manual team picking, the unplaced pool and spinning for the rest (D32, D34)
 
-[`scripts/e2e-game.mjs`](../apps/party/scripts/e2e-game.mjs) (`pnpm --filter @tmn/party e2e:game`, 30 checks) plays a whole four-player game: Cavan vetting, the round 1 intro, mid-turn phrase secrecy, a pile-out carried into round 2, the server alarm ending a turn, a skip that keeps the turn on the team and owes the skipped player the next one (D41), pause/add time/end turn, emotes, results with the podium, and Play again. CI runs both suites (§7).
+[`scripts/e2e-game.mjs`](../apps/party/scripts/e2e-game.mjs) (`pnpm --filter @tmn/party e2e:game`, 34 checks) plays a whole four-player game: Cavan vetting, the round 1 intro, mid-turn phrase secrecy, a pile-out carried into round 2, the server alarm ending a turn, a skip that keeps the turn on the team and owes the skipped player the next one (D41), pause/add time/end turn, emotes, a backdoor that only its typist can see and the locked Alex emote (D48), results with the podium, and Play again. CI runs both suites (§7).
 
 `src/index.ts`, `wrangler.jsonc` and `worker-configuration.d.ts` are as before. In dev the worker listens on `0.0.0.0:8787` (D12).
 
@@ -1260,10 +1312,10 @@ Still 🚧: the fun extras in §1.4 (backdoors, periodic table, microtransaction
 - Every accepted transition is persisted **before** it is broadcast.
 - The stored blob carries a `schemaVersion` ([§6.5](#65-state-integrity)).
 
-**`LobbyState`.** Implemented schema v10 contains:
+**`LobbyState`.** Implemented schema v11 contains:
 
 - `code`, `phase`, validated `config` (including `showGuessed`, D47), `schemaVersion`, creation/expiry timestamps;
-- `players` with server-only session tokens, status, waiting flag and team ID;
+- `players` with server-only session tokens, status, waiting flag, team ID and private `backdoors` (D48);
 - `roles: { gamemasterId, cavanId }` (D30) and the server-only `screenToken`;
 - ordered `teams` with `name`, `nameConfirmed`, `captainId` and assignment-ordered `memberIds`;
 - `draft: { mode: "wheel" | "manual", remainingIds, nextTeamIndex, stage: "spinning" | "revealing" | "complete", nextAt } | null` (D32);
@@ -1301,6 +1353,7 @@ After each change the server sends every connection `viewFor(state, playerId)` r
 | Active player, during `turnActive` / `turnReview` | `game.turn.currentPhrase`: the phrase being described (or, in review, the one not counted)                                                        |
 | Game master, while `reveal` is on                 | the same current phrase                                                                                                                           |
 | Game master, during writing                       | `moderation`: Cavan's pending phrases with their text (D30); only the GM (and Cavan themselves) see who Cavan is and Cavan's pending counts (D40) |
+| Each player                                       | `backdoors`: the backdoors they opened this game; `[]` for everyone else and the TV (D48)                                                         |
 | Each author                                       | their own phrases, with status (approved / pending / rejected)                                                                                    |
 | Everyone, once the game is over                   | `game.leaders`: the top three describers by points (D36)                                                                                          |
 | Active player, during `turnReview`                | `game.turn.guessed`: the phrases guessed that turn. Everyone else gets it only if `showGuessed` is on (D47)                                       |
@@ -1327,7 +1380,7 @@ The reducer enforces this table, and rejects anything not listed. ✅ marks acti
 | ✅ `confirmTeams`                              | game master                                  | `teams`                                   | Wheel complete, every eligible connected player assigned, every team connected and explicitly named → writing                                                                                                                                                                                                   |
 | ✅ `addToTeam` (late joiners)                  | game master                                  | `writing`, game phases                    | Waiting players only; they join that team's rotation (D31)                                                                                                                                                                                                                                                      |
 | ✅ `spinRest`                                  | game master                                  | `teams`, wheel idle                       | Spins the wheel for every connected unplaced player; each spin fills the smallest team (D34)                                                                                                                                                                                                                    |
-| ✅ `submitPhrase { text }`                     | connected, non-waiting player on a team      | `writing`                                 | Quota, length, word count and duplicate validation; private text only for author.                                                                                                                                                                                                                               |
+| ✅ `submitPhrase { text }`                     | connected, non-waiting player on a team      | `writing`                                 | Quota, length, word count and duplicate validation; private text only for author. A backdoor code is never stored: it unlocks a perk for the typist only (D48).                                                                                                                                                 |
 | ✅ `deletePhrase { phraseId }`                 | author                                       | `writing`                                 | Own phrases only; frees a quota slot.                                                                                                                                                                                                                                                                           |
 | ✅ `setCavan { playerId \| null }`             | game master                                  | `lobby`–`writing`                         | Not the GM. New Cavan's approved phrases go back to pending; clearing approves pending (D30)                                                                                                                                                                                                                    |
 | ✅ `approvePhrase`, `rejectPhrase`             | game master                                  | `writing`                                 | Pending (Cavan's) phrases only. Rejected ones don't count toward the quota (D30)                                                                                                                                                                                                                                |
@@ -1345,7 +1398,7 @@ The reducer enforces this table, and rejects anything not listed. ✅ marks acti
 | ✅ `restartPrevTurn { ms }`                    | game master                                  | `turnReady`, `roundIntro`, `results`      | Undoes the last `proceed` from its snapshot; same player, chosen time (1 s–10 min)                                                                                                                                                                                                                              |
 | ✅ `reveal`                                    | game master                                  | `turnActive`                              | Shows the GM the active player's phrases                                                                                                                                                                                                                                                                        |
 | ✅ `skipTurn`                                  | game master                                  | `turnReady`                               | Whoever is up swaps with their next connected teammate, who plays now with the same time; the skipped player is owed the team's next turn. Refused if nobody else on the team is connected (D41)                                                                                                                |
-| ✅ `emote { kind }`                            | any connected player                         | any                                       | Broadcast only, never stored; per-socket rate limit applies                                                                                                                                                                                                                                                     |
+| ✅ `emote { kind }`                            | any connected player                         | any                                       | Broadcast only, never stored; per-socket rate limit applies; a locked emote needs its backdoor (D48)                                                                                                                                                                                                            |
 | ✅ `playAgain`                                 | game master                                  | `results`                                 | [§5.7](#57-play-again)                                                                                                                                                                                                                                                                                          |
 | ✅ `_presence { active, inactive }` _(server)_ | shell sweep                                  | any                                       | Status transitions only (D15)                                                                                                                                                                                                                                                                                   |
 | ✅ `_touch` _(server)_                         | shell alarm                                  | any                                       | Extends `expiresAt` while someone is still active                                                                                                                                                                                                                                                               |
@@ -1559,13 +1612,13 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 
 ### 6.9 Accepted risks & non-goals
 
-| Risk                                                  | Why it's accepted                                                                                                          |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Anyone with the code can join                         | That's how party games work. Codes aren't listed anywhere, and late joiners need the GM to place them                      |
-| Typing an inactive player's name takes them over (D7) | Required for rejoin-by-name. Nothing is at stake, and the GM can kick or rename                                            |
-| Session tokens are convenience, not authentication    | They only shortcut reconnects                                                                                              |
-| Backdoors (prank rewrite, reveal-all)                 | Intentional game features. When built: server-side, role-checked, and hidden well enough that nobody stumbles on them (Q6) |
-| Phrases aren't encrypted in storage                   | Deleted at expiry; nothing sensitive                                                                                       |
+| Risk                                                  | Why it's accepted                                                                                            |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Anyone with the code can join                         | That's how party games work. Codes aren't listed anywhere, and late joiners need the GM to place them        |
+| Typing an inactive player's name takes them over (D7) | Required for rejoin-by-name. Nothing is at stake, and the GM can kick or rename                              |
+| Session tokens are convenience, not authentication    | They only shortcut reconnects                                                                                |
+| Backdoors (D48)                                       | Intentional game features: server-side codes kept out of the web bundle, invisible to the GM and the TV (Q6) |
+| Phrases aren't encrypted in storage                   | Deleted at expiry; nothing sensitive                                                                         |
 
 **Not doing:** accounts, auth, encryption at rest, anti-cheat beyond hiding phrases, audit logs.
 
@@ -1609,7 +1662,7 @@ Web (Vercel) and party (Cloudflare) deploy independently, so an old browser tab 
 | fast-check                           | 4.10.2        |
 | Node / pnpm                          | 24.18 / 11.24 |
 
-**Protocol/storage:** `PROTOCOL_VERSION = 7`, `SCHEMA_VERSION = 9` (D30–D36, D41). Deploy party before web; persisted v8 lobbies reset.
+**Protocol/storage:** `PROTOCOL_VERSION = 9`, `SCHEMA_VERSION = 11` (D30–D36, D41, D47, D48). Deploy party before web; persisted v10 lobbies reset.
 
 **Connection feedback:** `LOBBY_RESPONSE_TIMEOUT_MS = 8_000`. This is a host/player startup UI grace period, not a socket close or server timeout. Automatic retries continue after the error is shown; “Try again” starts a fresh grace period (D25).
 
@@ -1684,22 +1737,22 @@ If your LAN uses `172.16–31.x` addresses, add them to `allowedDevOrigins` in `
 
 The design makes an assumption for each of these, so work isn't blocked. Confirm or change them, and record the answer here and in the decision log.
 
-| #   | Question                                                                      | Current assumption / answer                                                                                                                                                                                      |
-| --- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1  | When an inactive player's turn comes up, does their **team** still play?      | Yes: the next active teammate goes; the team is skipped only if nobody on it is active                                                                                                                           |
-| Q2  | Does the original game master get GM back when they rejoin?                   | No. GM stays with whoever it passed to; the GM can hand it back with "Make game master" ✅ built this way                                                                                                        |
-| Q3  | How many rounds, and how do they work?                                        | **Answered 2026-10-26:** 3 rounds with the same mechanics and the same full pile each round (§1.2)                                                                                                               |
-| Q4  | When the pile empties mid-turn, what happens to the time left?                | **Answered 2026-10-26:** the timer stops; the same player keeps going into the next round with the time that was left (D17)                                                                                      |
-| Q5  | Are kicked players banned from rejoining?                                     | No; after team confirmation they land in the waiting room, so the GM controls it                                                                                                                                 |
-| Q6  | How are the backdoors triggered?                                              | **Partly answered 2026-10-28:** they must be very hard or impossible to trigger for anyone who doesn't already know how, and still server-side and role-gated. The trigger itself is undecided. Not built (§1.4) |
-| Q7  | Does the TV screen join as a player or a spectator?                           | **Answered 2026-10-26:** the TV _is_ the host: a non-player screen that runs the game (D18)                                                                                                                      |
-| Q8  | Who starts round 2 and round 3?                                               | **Answered 2026-10-26:** rotation continues; in practice the player who emptied the pile continues first (D17)                                                                                                   |
-| Q9  | Do rounds have different clue rules?                                          | **Answered 2026-10-26:** R1 describe without saying any of the words, R2 charades (no talking), R3 one word (§1.2)                                                                                               |
-| Q10 | What does a tie look like at the end?                                         | **Answered 2026-10-26:** a tie is a tie: no tiebreaker, the tied teams are shown as tied                                                                                                                         |
-| Q11 | What if the pile runs out with almost no time left (say under 1 s)?           | Carry over whatever is left, however small; the GM can `addTime` before the turn starts ✅ built this way                                                                                                        |
-| Q12 | Can players choose their own teams?                                           | **Answered 2026-10-27:** no self-selection. The wheel assigns everyone; only the GM can correct membership (D28).                                                                                                |
-| Q13 | How are late arrivals handled while teams are being picked?                   | **Answered 2026-10-27:** until teams are final they join the pool of unplaced players (the wheel draws them, or the GM places them or spins for the rest); after that they wait for the GM (D34, D31).           |
-| Q14 | Should the timer auto-pause the instant the active player's phone goes quiet? | Not built: the turn ends when they're marked inactive (20 s); the GM can pause manually (D31)                                                                                                                    |
+| #   | Question                                                                      | Current assumption / answer                                                                                                                                                                                                                                                                                                           |
+| --- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | When an inactive player's turn comes up, does their **team** still play?      | Yes: the next active teammate goes; the team is skipped only if nobody on it is active                                                                                                                                                                                                                                                |
+| Q2  | Does the original game master get GM back when they rejoin?                   | No. GM stays with whoever it passed to; the GM can hand it back with "Make game master" ✅ built this way                                                                                                                                                                                                                             |
+| Q3  | How many rounds, and how do they work?                                        | **Answered 2026-10-26:** 3 rounds with the same mechanics and the same full pile each round (§1.2)                                                                                                                                                                                                                                    |
+| Q4  | When the pile empties mid-turn, what happens to the time left?                | **Answered 2026-10-26:** the timer stops; the same player keeps going into the next round with the time that was left (D17)                                                                                                                                                                                                           |
+| Q5  | Are kicked players banned from rejoining?                                     | No; after team confirmation they land in the waiting room, so the GM controls it                                                                                                                                                                                                                                                      |
+| Q6  | How are the backdoors triggered?                                              | **Answered 2026-10-29 (D48):** a secret phrase typed into the phrase box during writing, checked on the server. It is never stored as a phrase and only its typist is told. The codes stay out of the phones' JavaScript. Earlier (2026-10-28): it must be very hard or impossible to trigger for anyone who doesn't already know how |
+| Q7  | Does the TV screen join as a player or a spectator?                           | **Answered 2026-10-26:** the TV _is_ the host: a non-player screen that runs the game (D18)                                                                                                                                                                                                                                           |
+| Q8  | Who starts round 2 and round 3?                                               | **Answered 2026-10-26:** rotation continues; in practice the player who emptied the pile continues first (D17)                                                                                                                                                                                                                        |
+| Q9  | Do rounds have different clue rules?                                          | **Answered 2026-10-26:** R1 describe without saying any of the words, R2 charades (no talking), R3 one word (§1.2)                                                                                                                                                                                                                    |
+| Q10 | What does a tie look like at the end?                                         | **Answered 2026-10-26:** a tie is a tie: no tiebreaker, the tied teams are shown as tied                                                                                                                                                                                                                                              |
+| Q11 | What if the pile runs out with almost no time left (say under 1 s)?           | Carry over whatever is left, however small; the GM can `addTime` before the turn starts ✅ built this way                                                                                                                                                                                                                             |
+| Q12 | Can players choose their own teams?                                           | **Answered 2026-10-27:** no self-selection. The wheel assigns everyone; only the GM can correct membership (D28).                                                                                                                                                                                                                     |
+| Q13 | How are late arrivals handled while teams are being picked?                   | **Answered 2026-10-27:** until teams are final they join the pool of unplaced players (the wheel draws them, or the GM places them or spins for the rest); after that they wait for the GM (D34, D31).                                                                                                                                |
+| Q14 | Should the timer auto-pause the instant the active player's phone goes quiet? | Not built: the turn ends when they're marked inactive (20 s); the GM can pause manually (D31)                                                                                                                                                                                                                                         |
 
 ## Appendix: decision template
 

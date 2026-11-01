@@ -1,6 +1,7 @@
 // Shared between apps/web and apps/party. Keep this package free of
 // runtime-specific code (no DOM, no Workers APIs) so it runs anywhere.
 
+export * from "./backdoors";
 export * from "./code";
 export * from "./config";
 export * from "./constants";

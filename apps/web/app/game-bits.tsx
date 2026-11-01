@@ -14,6 +14,7 @@ export const EMOTE_LABELS: Record<EmoteKind, string> = {
   thumbsUp: "Thumbs up",
   thumbsDown: "Thumbs down",
   tomato: "Throw a tomato",
+  alex: "Alex",
 };
 
 /** m:ss, rounding up so the clock never shows 0:00 with time left. */

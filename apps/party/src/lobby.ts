@@ -273,10 +273,19 @@ export class Lobby extends Server<Env> {
               kind: effect.kind,
             });
       }
+      // Only that player's own sockets: nobody else may learn of it (D48).
+      if (effect.type === "notice")
+        for (const conn of this.getConnections<SocketState>())
+          if (conn.state?.playerId === effect.playerId)
+            this.send(conn, { type: "notice", message: effect.message });
     }
 
-    // A pure broadcast (an emote) needs no new views.
-    if (!changed && result.effects.every((e) => e.type === "emote")) return;
+    // A pure message (an emote, a notice) needs no new views.
+    if (
+      !changed &&
+      result.effects.every((e) => e.type === "emote" || e.type === "notice")
+    )
+      return;
     await this.scheduleAlarm();
     this.pushViews();
   }

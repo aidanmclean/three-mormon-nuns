@@ -2,6 +2,17 @@
 
 Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE.md](./ARCHITECTURE.md#3-decision-log)) where there is one. Every change gets an entry; see [AGENTS.md](../AGENTS.md).
 
+## 2026-10-29
+
+- **Added:** backdoors ([D48](./ARCHITECTURE.md#d48-backdoors-are-secret-phrases-typed-during-writing-the-first-unlocks-the-alex-emote)).
+  - During writing, typing a secret phrase into the phrase box unlocks a perk for that player for the rest of the game, and a private toast says so.
+  - The code is never a phrase: nothing in the pile, no quota used, nothing in the GM's queue (even from Cavan).
+  - The GM, the TV and other phones can't tell. The codes live in `packages/game/src/backdoor-codes.ts` and never reach the phones' JavaScript.
+- **Added:** the first backdoor unlocks an **Alex** emote (`apps/web/public/alex_emote.png`) in the emote bar. It pops up on the TV like the others; the server refuses it from anyone who hasn't unlocked it. **Play again** clears it.
+- **Changed:** phone toasts have a second, "good news" style (blue edge, spark icon).
+- **Changed:** protocol 9, schema 11. Deploy party before web; stored lobbies reset. The e2e scripts' protocol constant is now 9.
+- **Fixed (docs):** §7 still listed protocol 7 and schema 9.
+
 ## 2026-10-28
 
 - **Added:** a **Show guessed phrases** house rule, off by default, on the host setup page and in the GM's lobby rules ([D47](./ARCHITECTURE.md#d47-guessed-phrases-are-hidden-after-a-turn-unless-a-house-rule-shows-them)).

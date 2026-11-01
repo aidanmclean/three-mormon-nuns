@@ -1,3 +1,4 @@
+import { canSendEmote } from "./backdoors";
 import {
   ROUNDS,
   TURN_COUNTDOWN_MS,
@@ -253,6 +254,8 @@ export function playerGameAction(
   ctx: Ctx,
 ): Result {
   if (action.type === "emote") {
+    if (!canSendEmote(action.kind, actor.backdoors))
+      return fail("FORBIDDEN", "That emote is locked.");
     // Not a state change; the shell broadcasts it (D31).
     return {
       ok: true,
@@ -574,7 +577,11 @@ function playAgain(state: LobbyState): LobbyState {
   const players = Object.fromEntries(
     Object.values(state.players)
       .filter((p) => p.status === "active")
-      .map((p) => [p.id, { ...p, teamId: null, waiting: false }]),
+      // Backdoors last one game (D48).
+      .map((p) => [
+        p.id,
+        { ...p, teamId: null, waiting: false, backdoors: [] },
+      ]),
   );
   return {
     ...state,

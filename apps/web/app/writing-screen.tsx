@@ -33,6 +33,17 @@ export function WritingScreen({
       setPendingText(null);
     }
   }, [view.ownPhrases, pendingText]);
+  // A backdoor code never becomes a phrase (D48); clear it once it opens.
+  const unlocked = view.backdoors?.length ?? 0;
+  const [seenUnlocked, setSeenUnlocked] = useState(unlocked);
+  useEffect(() => {
+    if (unlocked === seenUnlocked) return;
+    if (unlocked > seenUnlocked && pendingText) {
+      setText((current) => (current === pendingText ? "" : current));
+      setPendingText(null);
+    }
+    setSeenUnlocked(unlocked);
+  }, [unlocked, seenUnlocked, pendingText]);
   const me = view.players.find((p) => p.id === view.you);
   const writers = view.players.filter((p) => !p.waiting && p.teamId);
   const active = writers.filter((p) => p.status === "active");

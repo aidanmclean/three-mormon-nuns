@@ -1837,6 +1837,10 @@ html:has(.m-app) body {
   height: 22px;
   color: var(--yellow);
 }
+/* Good news (a backdoor opening, D48): same card, blue edge. */
+.m-toast-good {
+  border-left-color: var(--blue);
+}
 .m-toast-text {
   flex: 1;
   min-width: 0;
@@ -1869,6 +1873,10 @@ html:has(.m-app) body {
   width: 1em;
   height: 1em;
   filter: drop-shadow(0.04em 0.04em 0 rgba(32, 35, 30, 0.35));
+}
+/* The backdoor emote is a cut-out photo; keep its shape inside the square. */
+.emote-photo {
+  object-fit: contain;
 }
 
 /* Fit (D42): content laid out wider, then scaled down to the box. */

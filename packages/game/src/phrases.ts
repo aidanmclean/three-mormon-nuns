@@ -1,3 +1,4 @@
+import { BACKDOOR_UNLOCKED, backdoorFor } from "./backdoor-codes";
 import { PHRASE_MAX_LEN } from "./constants";
 import { cleanName, nameKey } from "./names";
 import type { Action, Ctx, Result } from "./reducer";
@@ -39,6 +40,29 @@ export function phraseAction(
     return { ok: true, state: { ...state, phrases }, effects: [] };
   }
   if (action.type !== "submitPhrase") return fail("Choose a phrase action.");
+  // A backdoor code is never a phrase: no pile entry, nothing for the GM to
+  // vet (even from Cavan), no quota used. Only the typist hears about it (D48).
+  const backdoor = backdoorFor(action.text);
+  if (backdoor) {
+    const notice = {
+      type: "notice" as const,
+      playerId: actor.id,
+      message: BACKDOOR_UNLOCKED[backdoor],
+    };
+    if (actor.backdoors.includes(backdoor))
+      return { ok: true, state, effects: [notice] };
+    return {
+      ok: true,
+      state: {
+        ...state,
+        players: {
+          ...state.players,
+          [actor.id]: { ...actor, backdoors: [...actor.backdoors, backdoor] },
+        },
+      },
+      effects: [notice],
+    };
+  }
   const text = cleanName(action.text);
   if (!text || [...text].length > PHRASE_MAX_LEN)
     return fail(`Use between 1 and ${PHRASE_MAX_LEN} characters.`);

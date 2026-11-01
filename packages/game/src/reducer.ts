@@ -42,7 +42,9 @@ export type Effect =
   | { type: "screenBound"; token: string }
   | { type: "kicked"; playerId: PlayerId }
   /** Broadcast a reaction; not a state change (D31). */
-  | { type: "emote"; playerId: PlayerId; kind: EmoteKind };
+  | { type: "emote"; playerId: PlayerId; kind: EmoteKind }
+  /** A private message to one player's phone, e.g. a backdoor opening (D48). */
+  | { type: "notice"; playerId: PlayerId; message: string };
 
 export type Result =
   | { ok: true; state: LobbyState; effects: Effect[] }
@@ -388,6 +390,7 @@ function newPlayer(name: string, ctx: Ctx, waiting: boolean): Player {
     status: "active",
     waiting,
     joinedAt: ctx.now,
+    backdoors: [],
   };
 }
 

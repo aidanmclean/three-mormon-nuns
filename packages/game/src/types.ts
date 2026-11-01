@@ -1,3 +1,4 @@
+import type { BackdoorId } from "./backdoors";
 import type { Config } from "./config";
 
 export type PlayerId = string;
@@ -115,6 +116,8 @@ export interface Player {
   /** Joined after team confirmation; waits for the game master to assign a team. */
   waiting: boolean;
   joinedAt: number;
+  /** Backdoors this player opened this game (D48). Only their own view sees them. */
+  backdoors: BackdoorId[];
 }
 
 /**

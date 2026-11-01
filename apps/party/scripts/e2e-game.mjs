@@ -4,7 +4,7 @@
 // Takes about a minute: the wheel spins and one turn runs out on the server clock.
 
 const HOST = process.env.PARTY_HOST ?? "localhost:8787";
-const V = 8; // keep in sync with PROTOCOL_VERSION in packages/game
+const V = 9; // keep in sync with PROTOCOL_VERSION in packages/game
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const code = Array.from(
   { length: 4 },
@@ -26,6 +26,7 @@ class Client {
     this.view = null;
     this.errors = [];
     this.emotes = [];
+    this.notices = [];
     this.joined = null;
     this.ws = new WebSocket(`ws://${HOST}/parties/lobby/${code}?v=${V}`);
     this.ws.onmessage = (e) => {
@@ -34,6 +35,7 @@ class Client {
       if (msg.type === "state") this.view = msg.view;
       if (msg.type === "error") this.errors.push(msg);
       if (msg.type === "emote") this.emotes.push(msg);
+      if (msg.type === "notice") this.notices.push(msg);
       if (msg.type === "joined") this.joined = msg;
     };
     this.timer = setInterval(
@@ -153,6 +155,26 @@ check(
     !JSON.stringify(screen.view).includes("Drew secret"),
   "nobody else sees Cavan's pending phrase",
 );
+
+// Backdoors (D48): even Cavan's code phrase never reaches the GM.
+phones.Drew.send({ type: "submitPhrase", text: "Alex Emote" });
+const unlocked = await phones.Drew.until((v) =>
+  v.backdoors?.includes("alexEmote"),
+);
+await sleep(300);
+check(
+  unlocked && phones.Drew.notices.some((n) => /Alex emote/.test(n.message)),
+  "a backdoor code unlocks for its typist, with a private notice",
+);
+check(
+  [gm, phones.Blair, phones.Casey, screen].every(
+    (c) =>
+      c.notices.length === 0 &&
+      c.view.backdoors.length === 0 &&
+      !JSON.stringify(c.view).toLowerCase().includes("alex emote"),
+  ) && gm.view.players.find((p) => p.id === id("Drew"))?.phraseCount === 1,
+  "the GM, the TV and other phones see no trace of it",
+);
 gm.send({ type: "startGame" });
 check(
   await gm.error("INVALID"),
@@ -237,6 +259,22 @@ while (!screen.emotes.length && Date.now() - start < 3000) await sleep(50);
 check(
   screen.emotes[0]?.kind === "tomato" && screen.emotes[0]?.name === "Blair",
   "emotes reach the TV",
+);
+phones.Blair.send({ type: "emote", kind: "alex" });
+check(
+  await phones.Blair.error("FORBIDDEN"),
+  "the Alex emote is locked without its backdoor",
+);
+phones.Drew.send({ type: "emote", kind: "alex" });
+const alexStart = Date.now();
+while (
+  !screen.emotes.some((e) => e.kind === "alex") &&
+  Date.now() - alexStart < 3000
+)
+  await sleep(50);
+check(
+  screen.emotes.some((e) => e.kind === "alex" && e.name === "Drew"),
+  "Drew's unlocked Alex emote reaches the TV",
 );
 
 // Round 2: the carried turn runs out on the server's clock (alarm → _turnTick).

@@ -34,11 +34,14 @@ export function Game({ code: rawCode }: { code: string }) {
         <div role="alert">
           <button
             type="button"
-            className="m-toast"
+            className={`m-toast ${lobby.notice.tone === "good" ? "m-toast-good" : ""}`}
             onClick={lobby.dismissNotice}
           >
-            <Icon name="alert" className="m-toast-icon" />
-            <span className="m-toast-text">{lobby.notice}</span>
+            <Icon
+              name={lobby.notice.tone === "good" ? "spark" : "alert"}
+              className="m-toast-icon"
+            />
+            <span className="m-toast-text">{lobby.notice.text}</span>
             <Icon name="close" className="m-toast-close" />
             <span className="sr-only">Dismiss</span>
           </button>

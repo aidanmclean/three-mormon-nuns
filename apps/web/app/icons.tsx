@@ -1,4 +1,5 @@
 import type { EmoteKind } from "@tmn/game";
+import Image from "next/image";
 import { type ReactNode, useId } from "react";
 
 // Drawn icons instead of emoji and symbol characters, which render
@@ -104,6 +105,21 @@ export function EmoteIcon({
   size?: string | number;
 }) {
   const id = useId().replace(/:/g, "");
+  // The backdoor emote is a photo, not a drawing (D48).
+  if (kind === "alex")
+    return (
+      <Image
+        src="/alex_emote.png"
+        alt=""
+        width={279}
+        height={395}
+        sizes="(max-width: 760px) 64px, 200px"
+        // Emotes fly in from invisible; a lazy image would never start.
+        loading="eager"
+        className="emote-icon emote-photo"
+        aria-hidden
+      />
+    );
   const shape = EMOTE_SHAPES[kind];
   return (
     <svg
@@ -129,128 +145,119 @@ export function EmoteIcon({
   );
 }
 
-const EMOTE_SHAPES: Record<EmoteKind, { base: ReactNode; detail: ReactNode }> =
-  {
-    laugh: {
-      base: (
-        <>
-          <circle cx="16" cy="16" r="12" fill="#ffdc4a" />
-          <path d="M3 13c-1 3 0 5 2 5s2-3 0-5z" fill="#7cc8f2" />
-          <path d="M29 13c1 3 0 5-2 5s-2-3 0-5z" fill="#7cc8f2" />
-        </>
-      ),
-      detail: (
-        <g stroke={INK} strokeWidth={2} strokeLinecap="round" fill="none">
-          <path d="M9.5 13.5l2.5-2 2.5 2M17.5 13.5l2.5-2 2.5 2" />
-          <path d="M9 18h14a7 7 0 0 1-14 0z" fill={INK} />
-          <path
-            d="M12.5 22.3a5 3 0 0 1 7 0"
-            stroke="#c93329"
-            strokeWidth={2.4}
-          />
-        </g>
-      ),
-    },
-    clap: {
-      base: (
-        <>
-          <rect x="9" y="4" width="4.2" height="14" rx="2.1" fill="#ffdc4a" />
-          <rect
-            x="13.4"
-            y="2.5"
-            width="4.2"
-            height="15"
-            rx="2.1"
-            fill="#ffdc4a"
-          />
-          <rect
-            x="17.8"
-            y="4"
-            width="4.2"
-            height="14"
-            rx="2.1"
-            fill="#ffdc4a"
-          />
-          <rect x="22.2" y="7" width="4" height="12" rx="2" fill="#ffdc4a" />
-          <rect
-            x="3.5"
-            y="13"
-            width="4.2"
-            height="10"
-            rx="2.1"
-            fill="#ffdc4a"
-            transform="rotate(-38 5.6 18)"
-          />
-          <rect x="8.5" y="12" width="17.7" height="17" rx="7" fill="#ffdc4a" />
-        </>
-      ),
-      detail: (
-        <g stroke={INK} strokeWidth={2} strokeLinecap="round">
-          <path d="M27.5 3.5l1.5-2M29.5 7.5l2-1M24.5 2l.2-2" />
-        </g>
-      ),
-    },
-    fire: {
-      base: (
-        <path
-          d="M16 2c1.2 5.5 9 8 9 16.5a9 9 0 0 1-18 0c0-4.6 2.4-7.4 3.7-9.6 1 2.4 2.2 3.6 3.6 3.9C13.8 9 13.2 5.4 16 2z"
-          fill="#f08a24"
-        />
-      ),
-      detail: (
-        <path
-          d="M16 15c.9 3 4.6 4.3 4.6 8.4a4.6 4.6 0 0 1-9.2 0c0-2.4 1.4-3.8 2-4.9.7 1 1.4 1.5 2 1.6-.6-1.8-.3-3.6.6-5.1z"
+const EMOTE_SHAPES: Record<
+  Exclude<EmoteKind, "alex">,
+  { base: ReactNode; detail: ReactNode }
+> = {
+  laugh: {
+    base: (
+      <>
+        <circle cx="16" cy="16" r="12" fill="#ffdc4a" />
+        <path d="M3 13c-1 3 0 5 2 5s2-3 0-5z" fill="#7cc8f2" />
+        <path d="M29 13c1 3 0 5-2 5s-2-3 0-5z" fill="#7cc8f2" />
+      </>
+    ),
+    detail: (
+      <g stroke={INK} strokeWidth={2} strokeLinecap="round" fill="none">
+        <path d="M9.5 13.5l2.5-2 2.5 2M17.5 13.5l2.5-2 2.5 2" />
+        <path d="M9 18h14a7 7 0 0 1-14 0z" fill={INK} />
+        <path d="M12.5 22.3a5 3 0 0 1 7 0" stroke="#c93329" strokeWidth={2.4} />
+      </g>
+    ),
+  },
+  clap: {
+    base: (
+      <>
+        <rect x="9" y="4" width="4.2" height="14" rx="2.1" fill="#ffdc4a" />
+        <rect
+          x="13.4"
+          y="2.5"
+          width="4.2"
+          height="15"
+          rx="2.1"
           fill="#ffdc4a"
         />
-      ),
-    },
-    thumbsUp: {
-      base: (
-        <>
-          <path
-            d="M11 14h3.2l3.4-9c2.2 0 3.6 1.6 3.1 3.9L19.8 13H26a2.4 2.4 0 0 1 2.3 2.9l-1.7 8.4A2.6 2.6 0 0 1 24 26.4H15a4 4 0 0 1-4-4z"
-            fill="#ffdc4a"
-          />
-          <rect x="4" y="13.5" width="6" height="13" rx="1.2" fill="#2d4e9c" />
-        </>
-      ),
-      detail: null,
-    },
-    thumbsDown: {
-      base: (
-        <g transform="rotate(180 16 16)">
-          <path
-            d="M11 14h3.2l3.4-9c2.2 0 3.6 1.6 3.1 3.9L19.8 13H26a2.4 2.4 0 0 1 2.3 2.9l-1.7 8.4A2.6 2.6 0 0 1 24 26.4H15a4 4 0 0 1-4-4z"
-            fill="#ffdc4a"
-          />
-          <rect x="4" y="13.5" width="6" height="13" rx="1.2" fill="#2d4e9c" />
-        </g>
-      ),
-      detail: null,
-    },
-    tomato: {
-      base: (
-        <>
-          <circle cx="16" cy="18" r="11" fill="#e0483a" />
-          <path
-            d="M16 4.5l1.6 3.4 3.7-.8-2 3.2 3 2.2-3.8.3-.5 3.7L16 13.6l-2 2.9-.5-3.7-3.8-.3 3-2.2-2-3.2 3.7.8z"
-            fill="#6aa84f"
-          />
-        </>
-      ),
-      detail: (
-        <ellipse
-          cx="11"
-          cy="19"
-          rx="2.2"
-          ry="3.4"
-          fill="#fffaf0"
-          opacity={0.75}
-          transform="rotate(20 11 19)"
+        <rect x="17.8" y="4" width="4.2" height="14" rx="2.1" fill="#ffdc4a" />
+        <rect x="22.2" y="7" width="4" height="12" rx="2" fill="#ffdc4a" />
+        <rect
+          x="3.5"
+          y="13"
+          width="4.2"
+          height="10"
+          rx="2.1"
+          fill="#ffdc4a"
+          transform="rotate(-38 5.6 18)"
         />
-      ),
-    },
-  };
+        <rect x="8.5" y="12" width="17.7" height="17" rx="7" fill="#ffdc4a" />
+      </>
+    ),
+    detail: (
+      <g stroke={INK} strokeWidth={2} strokeLinecap="round">
+        <path d="M27.5 3.5l1.5-2M29.5 7.5l2-1M24.5 2l.2-2" />
+      </g>
+    ),
+  },
+  fire: {
+    base: (
+      <path
+        d="M16 2c1.2 5.5 9 8 9 16.5a9 9 0 0 1-18 0c0-4.6 2.4-7.4 3.7-9.6 1 2.4 2.2 3.6 3.6 3.9C13.8 9 13.2 5.4 16 2z"
+        fill="#f08a24"
+      />
+    ),
+    detail: (
+      <path
+        d="M16 15c.9 3 4.6 4.3 4.6 8.4a4.6 4.6 0 0 1-9.2 0c0-2.4 1.4-3.8 2-4.9.7 1 1.4 1.5 2 1.6-.6-1.8-.3-3.6.6-5.1z"
+        fill="#ffdc4a"
+      />
+    ),
+  },
+  thumbsUp: {
+    base: (
+      <>
+        <path
+          d="M11 14h3.2l3.4-9c2.2 0 3.6 1.6 3.1 3.9L19.8 13H26a2.4 2.4 0 0 1 2.3 2.9l-1.7 8.4A2.6 2.6 0 0 1 24 26.4H15a4 4 0 0 1-4-4z"
+          fill="#ffdc4a"
+        />
+        <rect x="4" y="13.5" width="6" height="13" rx="1.2" fill="#2d4e9c" />
+      </>
+    ),
+    detail: null,
+  },
+  thumbsDown: {
+    base: (
+      <g transform="rotate(180 16 16)">
+        <path
+          d="M11 14h3.2l3.4-9c2.2 0 3.6 1.6 3.1 3.9L19.8 13H26a2.4 2.4 0 0 1 2.3 2.9l-1.7 8.4A2.6 2.6 0 0 1 24 26.4H15a4 4 0 0 1-4-4z"
+          fill="#ffdc4a"
+        />
+        <rect x="4" y="13.5" width="6" height="13" rx="1.2" fill="#2d4e9c" />
+      </g>
+    ),
+    detail: null,
+  },
+  tomato: {
+    base: (
+      <>
+        <circle cx="16" cy="18" r="11" fill="#e0483a" />
+        <path
+          d="M16 4.5l1.6 3.4 3.7-.8-2 3.2 3 2.2-3.8.3-.5 3.7L16 13.6l-2 2.9-.5-3.7-3.8-.3 3-2.2-2-3.2 3.7.8z"
+          fill="#6aa84f"
+        />
+      </>
+    ),
+    detail: (
+      <ellipse
+        cx="11"
+        cy="19"
+        rx="2.2"
+        ry="3.4"
+        fill="#fffaf0"
+        opacity={0.75}
+        transform="rotate(20 11 19)"
+      />
+    ),
+  },
+};
 
 const MEDAL = {
   1: { fill: "#f4c542", shine: "#ffe58a" },

@@ -74,7 +74,11 @@ export function useLobby(
   const [clockOffset, setClockOffset] = useState(0);
   const [connected, setConnected] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  // Refusals and hiccups are "error"; good news, like a backdoor, is "good".
+  const [notice, setNotice] = useState<{
+    text: string;
+    tone: "error" | "good";
+  } | null>(null);
   const [goneReason, setGoneReason] = useState<ByeReason | null>(null);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [timedOutAttempt, setTimedOutAttempt] = useState<number | null>(null);
@@ -188,6 +192,9 @@ export function useLobby(
         );
         return;
       }
+      case "notice":
+        setNotice({ text: msg.message, tone: "good" });
+        return;
       case "bye":
         setGoneReason(msg.reason);
         joined.current = false;
@@ -230,7 +237,7 @@ export function useLobby(
           setStatus("needName");
           return;
         }
-        setNotice(msg.message);
+        setNotice({ text: msg.message, tone: "error" });
         return;
     }
   }
@@ -305,7 +312,11 @@ export function useLobby(
     (action: LobbyAction) => {
       if (socket.readyState === WebSocket.OPEN)
         socket.send(JSON.stringify(action));
-      else setNotice("Not connected. Trying to reconnect…");
+      else
+        setNotice({
+          text: "Not connected. Trying to reconnect…",
+          tone: "error",
+        });
     },
     [socket],
   );

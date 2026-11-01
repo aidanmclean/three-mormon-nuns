@@ -8,10 +8,10 @@ export const PARTY = "lobby";
 export const CODE_LENGTH = 4;
 
 /** Bump on any breaking change to client/server messages or views (§6.8). */
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 
 /** Bump whenever the persisted LobbyState shape changes (§6.5). */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** Fixed by the game rules (§1.2). */
 export const ROUNDS = 3;
@@ -53,6 +53,8 @@ export const EMOTES = [
   "thumbsUp",
   "thumbsDown",
   "tomato",
+  /** Locked: only players who opened the alexEmote backdoor (D48). */
+  "alex",
 ] as const;
 export const MAX_PLAYERS_CAP = 40;
 /** Players + TV screens + duplicate tabs. */

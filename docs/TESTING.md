@@ -43,7 +43,8 @@ Use six players and two teams for the first run:
 9. Press **Start writing** on the GM’s phone. Every eligible phone gets a real phrase form. Add three phrases per player (default), each with at most three words. Try an empty phrase, too many words, an overlong phrase, and a duplicate: none should enter the pile.
 10. A player sees only their own phrase text. The host and other phones see counts. **Delete** removes an author’s own phrase and restores a quota slot. The GM can’t read or delete anyone’s phrases except Cavan’s pending ones.
 11. Cavan’s phrases show **checking** on Cavan’s phone and appear in a **Check Cavan’s phrases** queue on the GM’s phone only. **Reject** one: it’s struck through for Cavan and frees a slot, so Cavan writes another. **Approve** the rest.
-12. Fill everyone’s quota. **Start the game** on the GM’s phone stays refused while anything is pending or someone connected is short of approved phrases.
+12. **Backdoor:** on one phone, type the `alexEmote` code from `packages/game/src/backdoor-codes.ts` as a phrase. That phone shows a blue-edged "Backdoor unlocked" message and the box clears. No phrase is added, and the GM's phone and the TV show nothing, even if that player is Cavan. Once the game starts, only that phone has the extra Alex emote; tapping it pops Alex's face up on the TV. After **Play again** it's gone.
+13. Fill everyone’s quota. **Start the game** on the GM’s phone stays refused while anything is pending or someone connected is short of approved phrases.
 
 ## Pick teams by hand
 

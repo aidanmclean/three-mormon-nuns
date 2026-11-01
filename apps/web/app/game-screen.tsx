@@ -1,6 +1,6 @@
 "use client";
 
-import { EMOTES, type LobbyView } from "@tmn/game";
+import { canSendEmote, EMOTES, type LobbyView } from "@tmn/game";
 import { type CSSProperties, type ReactNode, useState } from "react";
 import type { LobbyAction } from "@/lib/use-lobby";
 import {
@@ -161,7 +161,7 @@ export function GameScreen({
         dock || emotes ? (
           <>
             {dock}
-            {emotes && <EmoteBar send={send} />}
+            {emotes && <EmoteBar view={view} send={send} />}
           </>
         ) : undefined
       }
@@ -461,11 +461,15 @@ function RestartPrevious({ view, send }: { view: LobbyView; send: Send }) {
   );
 }
 
-function EmoteBar({ send }: { send: Send }) {
+function EmoteBar({ view, send }: { view: LobbyView; send: Send }) {
+  // Locked emotes only show for players who opened their backdoor (D48).
+  const kinds = EMOTES.filter((kind) =>
+    canSendEmote(kind, view.backdoors ?? []),
+  );
   return (
     <fieldset className="m-emotes">
       <legend className="sr-only">Send a reaction to the big screen</legend>
-      {EMOTES.map((kind) => (
+      {kinds.map((kind) => (
         <button
           key={kind}
           type="button"

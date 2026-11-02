@@ -828,7 +828,7 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 
 ### D39: Phones get an app-style layout; drawn icons replace emoji
 
-**Status:** Accepted · 2026-10-28 (refines D38)
+**Status:** Accepted · 2026-10-28 (refines D38). Its separate "you" strip under the top bar is superseded by D49.
 
 **Decision:**
 
@@ -1165,6 +1165,54 @@ It is consumed as raw TypeScript (`"exports": { ".": "./src/index.ts" }`), with 
 - Tests:
   - `backdoors.test.ts` covers the unlock, secrecy from the GM, other players and the TV, Cavan, the quota, phase rules, the locked emote, reconnects and Play again.
   - The game e2e checks the private notice, that no other client sees a trace, and the locked and unlocked emote against the real server.
+
+### D49: One phone top bar with you in it; no heading while the wheel spins
+
+**Status:** Accepted · 2026-11-01 (refines D39, D42; supersedes D39's separate "you" strip). The phase in the bar is superseded by D50.
+
+**Decision:**
+
+- **The phone's top bar holds everything in one row:**
+  - the logo mark (`Logo compact`: the yellow 3 and spark);
+  - your avatar and name (with the crown if you're the GM);
+  - under the name, your team as a pill in its colour, then the phase ("Lobby", "Teams", "Writing", "Round 1 · Describe it");
+  - the room code on the right.
+- Long names and phases shorten with "…", so the bar never wraps or scrolls sideways at 360px.
+- The separate strip under the bar (avatar, name, "Game master" chip, team chip) is gone.
+- The name screen's bar uses the same logo mark; it was still using the pre-D44 markup, whose styles no longer existed.
+- **While the wheel spins, there's no heading.**
+  - On the phone, the "Wheel of names" title and its explanation are gone, and the wheel sits right under the bar.
+  - On the TV, the "Wheel of names" heading is gone; the header's "Picking teams" already says it, and the wheel and team columns get the room.
+  - The other team-screen headings ("Name your teams", "Pick the teams") stay.
+- **The captain's name field** says just "Team name", with no example names.
+
+**Why:** the user said "Wheel of names" and "One name at a time. The first on each team is captain." were "kinda useless and bloating the screen". They didn't like the example team names, and asked to put the name, avatar and team in the top bar with the code, "concise and good".
+
+**Alternatives:**
+
+- Keeping the phase as a yellow chip beside the name: at 360px there isn't room for the logo, a chip, the name and the code together.
+- Dropping the logo mark from the bar: it's the only branding on game screens and costs about 30px.
+
+**Consequences:**
+
+- The GM is marked by the crown, as in every list, instead of a "Game master" chip.
+- Checked at 360×760 from the name screen through the round intro, with a 16-character name; nothing overflows. TV checked at 1280×720.
+
+### D50: No phase label in the phone's top bar
+
+**Status:** Accepted · 2026-11-01 (supersedes the phase part of D49)
+
+**Decision:**
+
+- The phone's top bar no longer says "Lobby", "Teams", "Writing", "Round 1 · Describe it", "Results" or "Join".
+- It shows the logo mark, your avatar and name (with the crown if you're the GM), your team pill once you're on a team, and the room code.
+- `PhoneShell` loses its `phase` prop.
+
+**Why:** the user asked to "remove the Writing, Teams etc from the top bar on phone".
+
+**Alternatives:** keeping only the round number. Each screen's own heading already shows where the game is (the round intro card, "Write a phrase", the team headings), so the bar would repeat it.
+
+**Consequences:** the join screen's bar is just the logo mark and the code. Checked at 360px from the join screen through the round intro.
 
 ---
 

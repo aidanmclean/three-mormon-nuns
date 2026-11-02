@@ -847,19 +847,6 @@ html:has(.m-app) body {
   border-bottom: 3px solid var(--ink);
   background: var(--background);
 }
-.m-phase {
-  min-width: 0;
-  padding: 3px 10px;
-  border: 2px solid var(--ink);
-  background: var(--yellow);
-  box-shadow: 2px 2px 0 var(--ink);
-  font-family: var(--font-comic), sans-serif;
-  font-size: 19px;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .m-code {
   flex: none;
   margin-left: auto;
@@ -871,16 +858,52 @@ html:has(.m-app) body {
   font-weight: 700;
   letter-spacing: 0.08em;
 }
-.m-me {
+/* You, in the top bar: avatar, name (and crown), your team, the phase (D49). */
+.m-bar-me {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.m-bar-who {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.m-bar-name {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-  padding: 10px 16px 0;
-  font-size: 15px;
+  gap: 4px;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.15;
 }
-.m-role,
-.m-me-team,
+.m-bar-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-bar-name .icon {
+  width: 17px;
+  height: 17px;
+}
+.m-bar-team {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 6px;
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .m-chip,
 .m-you {
   padding: 1px 7px;
@@ -893,9 +916,6 @@ html:has(.m-app) body {
 }
 .m-chip-bad {
   background: #fac1a6;
-}
-.m-me-team {
-  margin-left: auto;
 }
 .m-you {
   border-style: dashed;
@@ -2833,7 +2853,14 @@ html:has(.m-app) body {
   margin-right: 4px;
 }
 .m-logo .logo {
-  font-size: 12px;
+  font-size: 15px;
+}
+.logo-compact {
+  align-items: flex-start;
+  gap: 0;
+}
+.logo-compact .logo-spark {
+  margin-left: -0.05em;
 }
 .tv-brand {
   display: flex;

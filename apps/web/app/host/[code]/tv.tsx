@@ -261,22 +261,22 @@ function TvTeams({
   const unplaced = view.players.filter(
     (p) => !p.teamId && !p.waiting && p.status === "active",
   );
-  const title = spinning
-    ? "Wheel of names"
-    : manual && unplaced.length > 0
-      ? "Picking teams"
-      : "Name your teams";
-  const subtitle = spinning
-    ? "One name at a time. The first on each team is captain."
-    : manual && unplaced.length > 0
+  const title =
+    manual && unplaced.length > 0 ? "Picking teams" : "Name your teams";
+  const subtitle =
+    manual && unplaced.length > 0
       ? `${gm} is putting everyone on a team.`
       : "Captains: name your team on your phone.";
   return (
     <div className={`tv-teams ${spinning ? "is-spinning" : ""}`}>
-      <div className="tv-heading">
-        <h1>{title}</h1>
-        <p className="tv-subtitle">{subtitle}</p>
-      </div>
+      {/* While the wheel spins, the header's "Picking teams" says it all,
+          and the wheel and teams get the room (D49). */}
+      {!spinning && (
+        <div className="tv-heading">
+          <h1>{title}</h1>
+          <p className="tv-subtitle">{subtitle}</p>
+        </div>
+      )}
       <div className="tv-teams-body">
         {spinning && (
           <div className="tv-wheel">

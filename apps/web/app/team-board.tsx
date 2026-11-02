@@ -49,35 +49,29 @@ export function TeamBoard({
   const teams = view.teams
     .map((team, index) => ({ team, index }))
     .sort((a, b) => Number(b.team === myTeam) - Number(a.team === myTeam));
-  const title = spinning
-    ? "Wheel of names"
-    : !complete
-      ? "Picking teams"
-      : manual && unplaced.length
-        ? "Pick the teams"
-        : "Name your teams";
-  const sub = spinning
-    ? captain
-      ? "You’re a captain! You’ll name your team when the wheel stops."
-      : "Names are drawn one at a time. The first on each team is captain."
-    : !complete
-      ? `${gm} is setting up the teams.`
-      : amGm
-        ? manual && unplaced.length
-          ? "Tap a team next to each name, or spin for the rest."
-          : "Captains name their teams. Tap a player to move them."
-        : !myTeam
-          ? `${gm} will put you on a team.`
-          : !myTeam.nameConfirmed
-            ? `${captainName(view, myTeam)} is naming your team.`
-            : unnamed
-              ? "Waiting for the other teams to pick names."
-              : `All set! ${gm} starts the phrase writing next.`;
+  const naming = complete && captain && !myTeam?.nameConfirmed;
+  const title = !complete
+    ? "Picking teams"
+    : manual && unplaced.length
+      ? "Pick the teams"
+      : "Name your teams";
+  const sub = !complete
+    ? `${gm} is setting up the teams.`
+    : amGm
+      ? manual && unplaced.length
+        ? "Tap a team next to each name, or spin for the rest."
+        : "Captains name their teams. Tap a player to move them."
+      : !myTeam
+        ? `${gm} will put you on a team.`
+        : !myTeam.nameConfirmed
+          ? `${captainName(view, myTeam)} is naming your team.`
+          : unnamed
+            ? "Waiting for the other teams to pick names."
+            : `All set! ${gm} starts the phrase writing next.`;
 
   return (
     <PhoneShell
       view={view}
-      phase="Teams"
       dock={
         amGm && complete ? (
           <>
@@ -100,8 +94,9 @@ export function TeamBoard({
         ) : undefined
       }
     >
-      {/* A captain's naming card is the hero; nobody needs both. */}
-      {complete && captain && myTeam && !myTeam.nameConfirmed ? (
+      {/* A captain's naming card is the hero; nobody needs both. While the
+          wheel spins it speaks for itself, so there's no heading (D49). */}
+      {naming && myTeam ? (
         <NameYourTeam
           key={myTeam.id}
           team={myTeam}
@@ -109,10 +104,12 @@ export function TeamBoard({
           send={send}
         />
       ) : (
-        <section className="m-hero">
-          <h1>{title}</h1>
-          <p className="m-sub">{sub}</p>
-        </section>
+        !spinning && (
+          <section className="m-hero">
+            <h1>{title}</h1>
+            <p className="m-sub">{sub}</p>
+          </section>
+        )
       )}
 
       {spinning && (
@@ -235,7 +232,7 @@ function NameYourTeam({
           ref={field}
           className="m-field m-field-big"
           aria-label={`Name for ${team.name}`}
-          placeholder={`e.g. The ${["Holy Rollers", "Nunchucks", "Choir", "Sisters"][index % 4]}`}
+          placeholder="Team name"
           value={name}
           maxLength={NAME_MAX_LEN}
           autoComplete="off"

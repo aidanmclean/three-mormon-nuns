@@ -7,6 +7,7 @@ import {
   validateName,
 } from "@tmn/game";
 import { useState } from "react";
+import { Logo } from "@/app/brand";
 import { Icon } from "@/app/icons";
 import { LobbyConnection } from "@/app/lobby-connection";
 import { Message } from "@/app/message";
@@ -130,10 +131,10 @@ function NameForm({
   return (
     <div className="m-app m-join">
       <header className="m-bar">
-        <span className="m-logo" role="img" aria-label="3 Mormon Nuns">
-          3<Icon name="spark" className="m-logo-spark" />
+        <span className="m-logo">
+          <Logo compact />
         </span>
-        <span className="m-phase">Join</span>
+        <span className="m-bar-me" />
         <span className="m-code">
           <span className="sr-only">Room </span>
           {code}

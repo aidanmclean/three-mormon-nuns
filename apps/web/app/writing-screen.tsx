@@ -65,7 +65,6 @@ export function WritingScreen({
   return (
     <PhoneShell
       view={view}
-      phase="Writing"
       dock={
         amGm ? (
           <>

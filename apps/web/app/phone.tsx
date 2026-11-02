@@ -12,12 +12,10 @@ import { playerColor, teamColor } from "./palette";
 
 export function PhoneShell({
   view,
-  phase,
   children,
   dock,
 }: {
   view: LobbyView;
-  phase: string;
   children: ReactNode;
   dock?: ReactNode;
 }) {
@@ -26,31 +24,38 @@ export function PhoneShell({
   const team = view.teams[teamIndex];
   return (
     <div className="m-app">
+      {/* One bar for who you are and the room (D49). No phase label: each
+          screen's own heading says where the game is (D50). */}
       <header className="m-bar">
         <span className="m-logo">
-          <Logo />
+          <Logo compact />
         </span>
-        <span className="m-phase">{phase}</span>
+        {me ? (
+          <span className="m-bar-me">
+            <Avatar player={me} />
+            <span className="m-bar-who">
+              <span className="m-bar-name">
+                <span className="m-bar-name-text">{me.name}</span>
+                {me.isGamemaster && <Icon name="crown" label="Game master" />}
+              </span>
+              {team && (
+                <span
+                  className="m-bar-team"
+                  style={{ background: teamColor(teamIndex) }}
+                >
+                  {team.name}
+                </span>
+              )}
+            </span>
+          </span>
+        ) : (
+          <span className="m-bar-me" />
+        )}
         <span className="m-code">
           <span className="sr-only">Room </span>
           {view.code}
         </span>
       </header>
-      {me && (
-        <p className="m-me">
-          <Avatar player={me} small />
-          <strong>{me.name}</strong>
-          {me.isGamemaster && <span className="m-role">Game master</span>}
-          {team && (
-            <span
-              className="m-me-team"
-              style={{ background: teamColor(teamIndex) }}
-            >
-              {team.name}
-            </span>
-          )}
-        </p>
-      )}
       <main className="m-body">{children}</main>
       {dock && <div className="m-dock">{dock}</div>}
     </div>

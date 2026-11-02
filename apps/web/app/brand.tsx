@@ -22,14 +22,28 @@ export function NunIllustration() {
  * The one logo, everywhere (D44): a big yellow 3, "MORMON" in blue, "NUNS" in
  * red and a yellow spark. It's drawn in `em`, so the page sets its size.
  */
-export function Logo({ decorative = false }: { decorative?: boolean }) {
+export function Logo({
+  decorative = false,
+  compact = false,
+}: {
+  decorative?: boolean;
+  /** Just the 3 and the spark, for the phone's top bar (D49). */
+  compact?: boolean;
+}) {
+  const a11y = decorative
+    ? ({ "aria-hidden": true } as const)
+    : ({ role: "img", "aria-label": "3 Mormon Nuns" } as const);
+  if (compact)
+    return (
+      <span className="logo logo-compact" {...a11y}>
+        <span className="logo-three" aria-hidden>
+          3
+        </span>
+        <Icon name="spark" className="logo-spark" />
+      </span>
+    );
   return (
-    <span
-      className="logo"
-      {...(decorative
-        ? { "aria-hidden": true }
-        : { role: "img", "aria-label": "3 Mormon Nuns" })}
-    >
+    <span className="logo" {...a11y}>
       <span className="logo-three" aria-hidden>
         3
       </span>

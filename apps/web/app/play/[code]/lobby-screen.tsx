@@ -48,7 +48,6 @@ function Lobby({ view, send }: { view: LobbyView; send: Send }) {
   return (
     <PhoneShell
       view={view}
-      phase="Lobby"
       dock={
         amGm ? (
           <>

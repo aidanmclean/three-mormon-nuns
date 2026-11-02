@@ -47,10 +47,6 @@ export function GameScreen({
     view.players.find((p) => p.isGamemaster)?.name ?? "the game master";
   const playing = !!me?.teamId && !me.waiting;
   const describing = mine && view.phase === "turnActive";
-  const phase =
-    view.phase === "results"
-      ? "Results"
-      : `Round ${game.round} · ${game.roundTitle}`;
   const acked = game.acknowledged.includes(view.you ?? "");
   const readyCount = game.acknowledged.length;
   const readyTotal = view.players.filter(
@@ -156,7 +152,6 @@ export function GameScreen({
   return (
     <PhoneShell
       view={view}
-      phase={phase}
       dock={
         dock || emotes ? (
           <>

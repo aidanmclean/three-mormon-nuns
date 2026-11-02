@@ -4,7 +4,7 @@
 // Takes ~40 s because it waits for a silent client to be marked inactive.
 
 const HOST = process.env.PARTY_HOST ?? "localhost:8787";
-const V = 9; // keep in sync with PROTOCOL_VERSION in packages/game
+const V = 10; // keep in sync with PROTOCOL_VERSION in packages/game
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const code = Array.from(
   { length: 4 },
@@ -130,6 +130,7 @@ screen.send({
     maxWordsPerPhrase: 3,
     profanityFilter: "off",
     showGuessed: false,
+    balanceTeams: true,
   },
 });
 const screenJoined = await screen.waitFor(
@@ -158,6 +159,13 @@ again.close();
 
 // First player becomes game master
 const hazel = await new Client("hazel").open();
+check(
+  await hazel.waitFor(
+    (m) =>
+      m.type === "lobbyInfo" && m.balanceTeams === true && !("config" in m),
+  ),
+  "a socket learns only whether to ask for a level before joining (D62)",
+);
 hazel.send({ type: "join", name: "Hazel" });
 const hazelJoined = await hazel.waitFor(
   (m) => m.type === "joined" && m.as === "player",
@@ -274,19 +282,29 @@ check(
 );
 alex.close();
 
-// The GM's phone dies: they go inactive, GM passes to Alex, and Hazel rejoins by name.
+// The GM's phone dies: they go inactive but keep the role (D52). The host
+// screen can hand it on, and nothing else; then Hazel rejoins by name.
 hazel.close();
-const handoff = await screen2.waitFor(
-  stateWhere(
-    (v) =>
-      statusOf(v, hazelJoined.playerId) === "inactive" &&
-      gmOf(v) === alexJoined.playerId,
-  ),
-  40000,
-);
 check(
-  handoff,
-  "silent GM marked inactive (~20 s) and GM passes to the next player",
+  await screen2.waitFor(
+    stateWhere(
+      (v) =>
+        statusOf(v, hazelJoined.playerId) === "inactive" &&
+        gmOf(v) === hazelJoined.playerId,
+    ),
+    40000,
+  ),
+  "silent GM marked inactive (~20 s) and keeps the role",
+);
+screen2.send({ type: "startTeams" });
+check(
+  await screen2.waitFor(isError("FORBIDDEN")),
+  "the host screen can't run the game",
+);
+screen2.send({ type: "setGamemaster", playerId: alexJoined.playerId });
+check(
+  await screen2.waitFor(stateWhere((v) => gmOf(v) === alexJoined.playerId)),
+  "the host screen hands the GM role to a connected player",
 );
 
 const hazelPhone2 = await new Client("hazel-new-phone").open();
@@ -458,6 +476,28 @@ const gmView = await alex2.waitFor(
 check(
   gmView && !JSON.stringify(gmView.view).includes("Secret flying toaster"),
   "GM cannot see somebody else's phrase either",
+);
+// Repeats are fine (D53): someone else's phrase, and your own twice.
+alex2.send({ type: "submitPhrase", text: "Secret flying toaster" });
+alex2.send({ type: "submitPhrase", text: "secret flying toaster" });
+check(
+  await alex2.waitFor(stateWhere((v) => v.ownPhrases?.length === 2)),
+  "a phrase can repeat, yours or someone else's",
+);
+// Skill levels (D51): yours to change, and only to a real level.
+alex2.send({ type: "setSkill", skill: "wizard" });
+check(await alex2.waitFor(isError("BAD_MESSAGE")), "unknown skill rejected");
+alex2.send({ type: "setSkill", skill: "expert" });
+const levelSeen = await alex2.waitFor(
+  stateWhere(
+    (v) =>
+      v.players.find((p) => p.id === alexJoined.playerId)?.skill === "expert",
+  ),
+);
+const tvSees = await screen2.waitFor(stateWhere(() => true));
+check(
+  levelSeen && tvSees?.view.players.every((p) => p.skill === null),
+  "a changed level reaches the GM, and the TV never sees levels (D59)",
 );
 alex2.send({ type: "deletePhrase", phraseId: own.view.ownPhrases[0].id });
 check(

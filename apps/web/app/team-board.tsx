@@ -6,7 +6,15 @@ import type { LobbyAction } from "@/lib/use-lobby";
 import { Icon } from "./icons";
 import { NameWheel } from "./name-wheel";
 import { teamColor } from "./palette";
-import { Avatar, BigButton, DockHint, PhoneShell, PlayerName } from "./phone";
+import {
+  Avatar,
+  BigButton,
+  DockHint,
+  PhoneShell,
+  PlayerName,
+  SkillTag,
+  seesSkill,
+} from "./phone";
 import { ManagePlayers } from "./players";
 
 type Send = (action: LobbyAction) => void;
@@ -139,6 +147,8 @@ export function TeamBoard({
                     player={p}
                     you={p.id === view.you}
                     showCavan={amGm}
+                    stacked={seesSkill(view)}
+                    tags={seesSkill(view) && <SkillTag skill={p.skill} />}
                   />
                 </div>
                 <div className="m-menu m-menu-teams">
@@ -370,10 +380,16 @@ function TeamCard({
                   player={p}
                   you={p.id === view.you}
                   showCavan={amGm}
+                  stacked={seesSkill(view)}
+                  tags={
+                    <>
+                      {team.captainId === p.id && (
+                        <span className="m-chip">captain</span>
+                      )}
+                      {seesSkill(view) && <SkillTag skill={p.skill} />}
+                    </>
+                  }
                 />
-                {team.captainId === p.id && (
-                  <span className="m-chip">captain</span>
-                )}
                 {amGm && send && (
                   <Icon name="chevronDown" className="m-member-chevron" />
                 )}

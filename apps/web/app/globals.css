@@ -28,6 +28,30 @@ body {
   color: var(--foreground);
   font-family: var(--font-display), sans-serif;
 }
+/* While someone is up, the card with the clock and their name takes their
+   team's colour on the TV and every phone, from "up next" through review
+   (D60). Stickers inside it switch to cream so they still stand out. */
+[data-turn-team="0"] {
+  --turn: #ffdc4a;
+}
+[data-turn-team="1"] {
+  --turn: #bce6e3;
+}
+[data-turn-team="2"] {
+  --turn: #fac1a6;
+}
+[data-turn-team="3"] {
+  --turn: #d8ccec;
+}
+:is(.tv, .m-app)[data-turn-team] :is(.tv-stage, .m-stage, .m-phrase-card) {
+  background-color: var(--turn);
+  transition: background-color 300ms;
+}
+:is(.tv, .m-app)[data-turn-team]
+  :is(.tv-stage, .m-stage)
+  :where(.tv-eyebrow, .tv-paused, .m-eyebrow, .m-paused) {
+  background: #fffaf0;
+}
 button,
 select {
   cursor: pointer;
@@ -1030,6 +1054,15 @@ html:has(.m-app) body {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+/* Undo, pause and end for a GM describing their own turn (D61). */
+.m-btn-row-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.m-btn-row-3 .m-btn-small {
+  padding: 8px 4px;
+  font-size: 15px;
+}
 .m-icon-btn {
   display: grid;
   flex: none;
@@ -1176,6 +1209,9 @@ html:has(.m-app) body {
   height: 26px;
   font-size: 15px;
 }
+/* Tags sit beside the name, wrapping only when they must. On the GM's lists,
+   where every row has a level, they go on a second line, so every row has
+   the same shape (D63). */
 .m-name {
   display: flex;
   flex: 1;
@@ -1184,6 +1220,31 @@ html:has(.m-app) body {
   gap: 4px 6px;
   min-width: 0;
   font-weight: 700;
+}
+.m-name-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.m-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.m-name-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.m-name-meta:empty {
+  display: none;
+}
+.m-name-meta :where(.m-chip, .m-you) {
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 1.45;
 }
 .m-name .icon {
   width: 20px;
@@ -1343,6 +1404,40 @@ html:has(.m-app) body {
   font-size: 14px;
   color: var(--muted);
 }
+/* Skill level (D51): stacked rows with a line each when joining, a compact
+   row of three in the lobby. */
+.m-seg-stack {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.m-seg-stack label {
+  min-height: 56px;
+  padding: 8px 14px;
+}
+.m-seg-3 {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.m-seg-3 label {
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 4px;
+  text-align: center;
+}
+.m-seg-3 strong {
+  font-size: 15px;
+}
+/* Every level looks the same; only the word differs (D59). */
+.m-skill {
+  flex: none;
+  padding: 0 6px;
+  border: 1.5px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  white-space: nowrap;
+}
 .m-rules .settings-list {
   padding: 0 16px;
 }
@@ -1445,10 +1540,13 @@ html:has(.m-app) body {
   background: var(--team, var(--yellow));
 }
 .m-team-chip-tag {
-  font-family: var(--font-typewriter), monospace;
+  align-self: center;
+  padding: 1px 5px;
+  border: 1.5px solid var(--ink);
+  background: var(--yellow);
   font-size: 11px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-weight: 700;
+  line-height: 1.3;
 }
 .m-team-chips .m-team-chips-empty {
   border-style: dashed;
@@ -2169,14 +2267,18 @@ html:has(.m-app) body {
 .tv-join-steps {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--u) * 1.6);
+  gap: calc(var(--u) * 0.9);
 }
 .tv-join-steps li {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: calc(var(--u) * 1.2);
 }
-.tv-join-steps li > div {
+.tv-step-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--u) * 0.3) calc(var(--u) * 1);
   min-width: 0;
 }
 .tv-step-label {
@@ -2187,35 +2289,229 @@ html:has(.m-app) body {
   display: grid;
   flex: none;
   place-items: center;
-  width: calc(var(--u) * 3.4);
-  height: calc(var(--u) * 3.4);
+  width: calc(var(--u) * 2.9);
+  height: calc(var(--u) * 2.9);
   border-radius: 50%;
   background: var(--ink);
   color: var(--yellow);
   font-family: var(--font-comic), sans-serif;
-  font-size: calc(var(--u) * 2.2);
+  font-size: calc(var(--u) * 1.9);
 }
 .tv-address {
-  margin-top: calc(var(--u) * 0.3);
+  min-width: 0;
   font-family: var(--font-typewriter), monospace;
-  font-size: calc(var(--u) * 2.7);
+  font-size: calc(var(--u) * 2.2);
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 .tv-code {
-  width: fit-content;
-  margin-top: calc(var(--u) * 0.7);
-  padding: 0 calc(var(--u) * 1);
-  border: calc(var(--u) * 0.35) solid var(--ink);
+  padding: 0 calc(var(--u) * 0.8);
+  border: calc(var(--u) * 0.3) solid var(--ink);
   background: #fffaf0;
-  box-shadow: calc(var(--u) * 0.5) calc(var(--u) * 0.5) 0 var(--ink);
+  box-shadow: calc(var(--u) * 0.4) calc(var(--u) * 0.4) 0 var(--ink);
   font-family: var(--font-typewriter), monospace;
-  font-size: calc(var(--u) * 8.6);
+  font-size: calc(var(--u) * 3.9);
   letter-spacing: 0.08em;
   line-height: 1.15;
   transform: rotate(-2deg);
 }
-.tv-join .tv-small {
-  margin-top: auto;
+/* The QR goes first: a camera takes players straight to the name screen
+   (D57). The steps stay for anyone who'd rather type. Fit shrinks it all if
+   the panel runs short. */
+.tv-join-fit {
+  flex: 1;
+}
+.tv-join-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.9);
+}
+.tv-qr-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.6);
+}
+.tv-qr {
+  flex: none;
+  width: calc(var(--u) * 12.5);
+  border: calc(var(--u) * 0.3) solid var(--ink);
+  background: #fff;
+  box-shadow: calc(var(--u) * 0.45) calc(var(--u) * 0.45) 0 var(--ink);
+}
+.qr {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.tv-qr-text {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.4);
+  min-width: 0;
+  font-size: calc(var(--u) * 1.7);
+  font-weight: 600;
+}
+.tv .tv-qr-text strong {
+  font-family: var(--font-comic), sans-serif;
+  font-size: calc(var(--u) * 3);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.025em;
+}
+.tv-join-or {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  font-family: var(--font-comic), sans-serif;
+  font-size: calc(var(--u) * 1.7);
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.tv-join-or::before,
+.tv-join-or::after {
+  content: "";
+  flex: 1;
+  height: calc(var(--u) * 0.2);
+  background: var(--ink);
+}
+
+/* The host screen's one control (D52): an alert when the GM drops (in the
+   footer, or the header mid-game), and a picker to hand the role on. */
+.tv-gm-away {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  min-width: 0;
+  margin-left: auto;
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 0.6) calc(var(--u) * 0.5)
+    calc(var(--u) * 1);
+  border: calc(var(--u) * 0.25) solid var(--ink);
+  background: #fffaf0;
+  box-shadow: calc(var(--u) * 0.45) calc(var(--u) * 0.45) 0 var(--ink);
+  font-size: calc(var(--u) * 1.7);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tv-gm-away > .icon {
+  width: 1.3em;
+  height: 1.3em;
+  color: var(--accent);
+}
+.tv-gm-away > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tv-btn {
+  flex: none;
+  padding: calc(var(--u) * 0.45) calc(var(--u) * 1.2);
+  border: calc(var(--u) * 0.2) solid var(--ink);
+  background: var(--accent);
+  box-shadow: calc(var(--u) * 0.25) calc(var(--u) * 0.25) 0 var(--ink);
+  color: #fff9ec;
+  font-family: var(--font-comic), sans-serif;
+  font-size: calc(var(--u) * 1.8);
+  letter-spacing: 0.035em;
+  line-height: 1.2;
+  transition: transform 120ms;
+}
+.tv-btn:hover {
+  transform: translate(-1px, -1px);
+}
+.tv-btn:active {
+  box-shadow: none;
+  transform: translate(calc(var(--u) * 0.2), calc(var(--u) * 0.2));
+}
+.tv-btn-quiet {
+  background: #fffaf0;
+  color: var(--ink);
+}
+.tv-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85em;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.tv-link:hover {
+  color: var(--ink);
+}
+.tv-overlay {
+  position: absolute;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--u) * 3);
+  background: rgba(32, 35, 30, 0.55);
+}
+.tv-picker {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.2);
+  width: min(100%, calc(var(--u) * 64));
+  max-height: 100%;
+  padding: calc(var(--u) * 2) calc(var(--u) * 2.4);
+  border: calc(var(--u) * 0.3) solid var(--ink);
+  background: #fff9ed;
+  box-shadow: calc(var(--u) * 0.6) calc(var(--u) * 0.6) 0 var(--ink);
+}
+.tv-picker h2 {
+  font-family: var(--font-comic), sans-serif;
+  font-size: calc(var(--u) * 3.6);
+  line-height: 1;
+  letter-spacing: 0.025em;
+  color: var(--blue);
+}
+.tv-picker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 0.9);
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(var(--u) * 0.2) calc(var(--u) * 0.5) calc(var(--u) * 0.6) 0;
+}
+.tv-picker-choice {
+  max-width: calc(var(--u) * 28);
+  overflow: hidden;
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 1.2);
+  border: calc(var(--u) * 0.2) solid var(--ink);
+  box-shadow: calc(var(--u) * 0.3) calc(var(--u) * 0.3) 0 var(--ink);
+  color: var(--ink);
+  font-size: calc(var(--u) * 2.1);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tv-picker-choice:hover {
+  transform: translate(-1px, -1px);
+}
+.tv-picker-empty {
+  color: var(--muted);
+  font-size: calc(var(--u) * 1.8);
+}
+.tv-picker > .tv-btn {
+  align-self: flex-end;
+}
+/* Refusals from the server, e.g. picking someone who just left. */
+.tv-notice {
+  position: absolute;
+  z-index: 55;
+  top: calc(var(--u) * 1.2);
+  left: 50%;
+  translate: -50% 0;
+  max-width: calc(100% - var(--u) * 4.8);
+  padding: calc(var(--u) * 0.6) calc(var(--u) * 1.4);
+  border: calc(var(--u) * 0.25) solid var(--ink);
+  background: #fac1a6;
+  box-shadow: calc(var(--u) * 0.4) calc(var(--u) * 0.4) 0 var(--ink);
+  font-size: calc(var(--u) * 1.8);
+  font-weight: 700;
 }
 .tv-players {
   display: flex;
@@ -2672,6 +2968,8 @@ html:has(.m-app) body {
   font-size: calc(var(--u) * 4);
   letter-spacing: 0.04em;
   transform: rotate(-3deg);
+  /* Room for the tilt: Fit measures the box, not its rotated corners. */
+  margin-block: calc(var(--u) * 0.6);
 }
 .tv-note {
   font-size: calc(var(--u) * 1.7);

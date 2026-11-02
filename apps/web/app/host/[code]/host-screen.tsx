@@ -12,7 +12,8 @@ import { useEffect, useState } from "react";
 import { LobbyConnection } from "@/app/lobby-connection";
 import { Message } from "@/app/message";
 import { clearScreen, devicePath, loadScreen, saveScreen } from "@/lib/session";
-import { type EmoteBurst, useLobby } from "@/lib/use-lobby";
+import { type EmoteBurst, type LobbyAction, useLobby } from "@/lib/use-lobby";
+import { useWakeLock } from "@/lib/use-wake-lock";
 import { TvBoard } from "./tv";
 
 export function HostScreen({ code: rawCode }: { code: string }) {
@@ -26,6 +27,8 @@ export function HostScreen({ code: rawCode }: { code: string }) {
     clearScreen(code);
     router.replace(devicePath(`/host/${next}`));
   });
+  // The TV shouldn't dim or sleep mid-game (D55).
+  useWakeLock(lobby.status === "joined");
 
   if (!isValidCode(code)) return <Message title="That's not a lobby code." />;
 
@@ -65,6 +68,8 @@ export function HostScreen({ code: rawCode }: { code: string }) {
           clockOffset={lobby.clockOffset}
           emotes={lobby.emotes}
           connected={lobby.connected}
+          send={lobby.send}
+          notice={lobby.notice?.text ?? null}
         />
       ) : (
         <LobbyConnection lobby={lobby} hosting />
@@ -78,11 +83,15 @@ function LobbyBoard({
   clockOffset,
   emotes,
   connected,
+  send,
+  notice,
 }: {
   view: LobbyView;
   clockOffset: number;
   emotes: EmoteBurst[];
   connected: boolean;
+  send: (action: LobbyAction) => void;
+  notice: string | null;
 }) {
   const addresses = useJoinAddresses();
   return (
@@ -92,6 +101,8 @@ function LobbyBoard({
       emotes={emotes}
       addresses={addresses}
       connected={connected}
+      send={send}
+      notice={notice}
     />
   );
 }

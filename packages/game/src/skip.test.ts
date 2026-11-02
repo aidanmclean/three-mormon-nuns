@@ -61,13 +61,12 @@ describe("skipping a turn swaps with the next teammate (D41)", () => {
   });
 
   it("never hands the turn to the other team", () => {
-    const { l, gm } = startedGame({}, ["Alex", "Blair", "Casey", "Drew"]);
-    const [a] = rosters(l.state);
-    expect(a?.[1]).not.toBe(gm);
-    ok(
-      l.act(null, { type: "_presence", active: [], inactive: [a?.[1] ?? ""] }),
-    );
+    const { l, gm } = startedGame({}, ["Alex", "Blair", "Casey"]);
+    const [, b] = rosters(l.state);
+    expect(b).toHaveLength(1);
+    emptyTurn(l, gm); // team A plays; B's only player is up
     const before = turn(l.state).playerId;
+    expect(before).toBe(b?.[0]);
     expect(l.act(gm, { type: "skipTurn" })).toMatchObject({
       ok: false,
       code: "INVALID",
@@ -89,7 +88,7 @@ describe("skipping a turn swaps with the next teammate (D41)", () => {
     expectValid(l.state);
   });
 
-  it("waits for an owed player who's away, and they go once they're back", () => {
+  it("keeps an owed player's turn while they're away, until they're back", () => {
     const { l, gm } = startedGame({}, SIX);
     const [a] = rosters(l.state);
     const away = a?.[1] ?? "";
@@ -101,13 +100,14 @@ describe("skipping a turn swaps with the next teammate (D41)", () => {
     expect(turn(l.state).playerId).toBe(a?.[2]);
     emptyTurn(l, gm); // a2 plays
     ok(l.act(null, { type: "_presence", active: [], inactive: [away] }));
-    emptyTurn(l, gm); // b1 plays; a1 is away, so the rotation goes on
-    expect(turn(l.state).playerId).toBe(a?.[0]);
-    expect(l.state.game?.owed).toEqual([away]);
-    emptyTurn(l, gm);
-    ok(l.act(null, { type: "_presence", active: [away], inactive: [] }));
-    emptyTurn(l, gm); // b2 plays
+    emptyTurn(l, gm); // b1 plays; a1 is away but still owed the turn (D54)
     expect(turn(l.state).playerId).toBe(away);
+    expect(l.state.game?.owed).toEqual([away]);
+    expect(l.act(gm, { type: "startTurn" })).toMatchObject({ ok: false });
+    ok(l.act(null, { type: "_presence", active: [away], inactive: [] }));
+    startTurn(l, gm);
+    expect(turn(l.state).playerId).toBe(away);
+    expect(l.state.game?.owed).toEqual([]);
     expectValid(l.state);
   });
 

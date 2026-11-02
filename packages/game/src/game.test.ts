@@ -120,26 +120,35 @@ describe("rotation (D13)", () => {
     );
   });
 
-  it("skips an offline player for their next teammate, and a team with nobody connected", () => {
+  it("keeps an offline player's turn: it waits for them, or the GM skips (D54)", () => {
     const { l, gm } = startedGame();
     const upNext = untilNotGmUp(l, gm);
     const teamId = turn(l.state).teamId;
-    const members = l.state.teams[teamId]?.memberIds ?? [];
-    const teammate = members.find((id) => id !== upNext);
     ok(l.act(null, { type: "_presence", active: [], inactive: [upNext] }));
-    expect(turn(l.state)).toMatchObject({ playerId: teammate, teamId });
-    // Everyone on the other team goes offline (unless it's the GM): it's skipped.
-    const otherTeam = l.state.teamOrder.find((id) => id !== teamId) ?? "";
-    const others = (l.state.teams[otherTeam]?.memberIds ?? []).filter(
-      (id) => id !== gm,
+    // Still their turn, but it can't start without their phone.
+    expect(turn(l.state)).toMatchObject({ playerId: upNext, teamId });
+    expect(l.act(gm, { type: "startTurn" })).toMatchObject({
+      ok: false,
+      message: expect.stringContaining("isn't connected"),
+    });
+    // Back again: off they go.
+    ok(l.act(null, { type: "_presence", active: [upNext], inactive: [] }));
+    startTurn(l, gm);
+    expect(l.state.phase).toBe("turnActive");
+    expectValid(l.state);
+  });
+
+  it("lets the GM skip an offline player to their teammate (D41, D54)", () => {
+    const { l, gm } = startedGame();
+    const upNext = untilNotGmUp(l, gm);
+    const teamId = turn(l.state).teamId;
+    const teammate = l.state.teams[teamId]?.memberIds.find(
+      (id) => id !== upNext,
     );
-    if (others.length === (l.state.teams[otherTeam]?.memberIds.length ?? 0)) {
-      ok(l.act(null, { type: "_presence", active: [], inactive: others }));
-      startTurn(l, gm);
-      ok(l.act(gm, { type: "endTurn" }));
-      ok(l.act(gm, { type: "proceed" }));
-      expect(turn(l.state).teamId).toBe(teamId);
-    }
+    ok(l.act(null, { type: "_presence", active: [], inactive: [upNext] }));
+    ok(l.act(gm, { type: "skipTurn" }));
+    expect(turn(l.state)).toMatchObject({ playerId: teammate, teamId });
+    expect(l.state.game?.owed).toEqual([upNext]);
     expectValid(l.state);
   });
 });
@@ -312,6 +321,56 @@ describe("a turn", () => {
   });
 });
 
+describe("restarting and shuffling (D58, D61)", () => {
+  it("restarts the turn from review, before it counts", () => {
+    const { l, gm } = startedGame();
+    const player = turn(l.state).playerId;
+    const pile = l.state.game?.pile.length;
+    startTurn(l, gm);
+    ok(l.act(player, { type: "next" }));
+    ok(l.act(gm, { type: "endTurn" }));
+    expect(l.state.phase).toBe("turnReview");
+    // Only the GM can do it.
+    const other = Object.keys(l.state.players).find((id) => id !== gm) ?? "";
+    expect(l.act(other, { type: "restartPrevTurn", ms: 30_000 })).toMatchObject(
+      { code: "FORBIDDEN" },
+    );
+    ok(l.act(gm, { type: "restartPrevTurn", ms: 30_000 }));
+    expect(l.state.phase).toBe("turnReady");
+    expect(turn(l.state)).toMatchObject({
+      playerId: player,
+      remainingMs: 30_000,
+      seen: [],
+    });
+    expect(Object.values(l.state.game?.scores ?? {})).toEqual([0, 0]);
+    expect(l.state.game?.pile).toHaveLength(pile ?? 0);
+    expectValid(l.state);
+  });
+
+  it("shuffles the pile every time someone starts a turn", () => {
+    const { l, gm } = startedGame();
+    let t = 0x9e3779b9;
+    const rng = () => {
+      t = (t * 1664525 + 1013904223) >>> 0;
+      return t / 2 ** 32;
+    };
+    const orders: string[][] = [];
+    for (let i = 0; i < 3; i++) {
+      ok(l.act(gm, { type: "startTurn" }, rng));
+      const order = [...(l.state.game?.pile ?? [])];
+      orders.push(order);
+      // The first phrase is the top of the freshly shuffled pile.
+      expect(turn(l.state).seen).toEqual([order[0]]);
+      l.tick(3_000);
+      ok(l.act(gm, { type: "endTurn" }));
+      ok(l.act(gm, { type: "proceed" }));
+      expectValid(l.state);
+    }
+    expect(new Set(orders.map((o) => o.join())).size).toBe(3);
+    expect(new Set(orders[0]).size).toBe(orders[0]?.length);
+  });
+});
+
 describe("pile-outs and rounds (D17)", () => {
   /** Active player guesses everything left in the pile. */
   function guessAll(l: ReturnType<typeof lobbyWith>) {
@@ -431,16 +490,27 @@ describe("pile-outs and rounds (D17)", () => {
 });
 
 describe("people coming and going mid-game", () => {
-  it("ends the turn when the active player drops", () => {
+  it("pauses the clock when the active player drops, and keeps their turn (D54)", () => {
     const { l, gm } = startedGame();
     const player = untilNotGmUp(l, gm);
     startTurn(l, gm);
+    l.tick(5_000);
     ok(l.act(null, { type: "_presence", active: [], inactive: [player] }));
-    expect(l.state.phase).toBe("turnReview");
-    expect(turn(l.state).endedBy).toBe("left");
-    ok(l.act(gm, { type: "proceed" }));
-    expect(l.state.phase).toBe("turnReady");
-    expect(turn(l.state).playerId).not.toBe(player);
+    expect(l.state.phase).toBe("turnActive");
+    expect(turn(l.state)).toMatchObject({ playerId: player, paused: true });
+    const remaining = turn(l.state).remainingMs;
+    // Time doesn't run while they're gone.
+    l.tick(30_000);
+    ok(l.act(null, { type: "_turnTick" }));
+    expect(l.state.phase).toBe("turnActive");
+    expect(turn(l.state).remainingMs).toBe(remaining);
+    // The GM can't restart the clock without them.
+    expect(l.act(gm, { type: "resumeTimer" })).toMatchObject({
+      code: "INVALID",
+    });
+    ok(l.act(null, { type: "_presence", active: [player], inactive: [] }));
+    ok(l.act(gm, { type: "resumeTimer" }));
+    expect(turn(l.state).paused).toBe(false);
     expectValid(l.state);
   });
 

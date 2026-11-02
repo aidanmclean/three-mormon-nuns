@@ -35,7 +35,7 @@ describe("designating Cavan", () => {
     expect(cavanFor(null)).toBeUndefined();
   });
 
-  it("can't hand Cavan the GM role, and handoff prefers someone else", () => {
+  it("can't hand Cavan the GM role, from a phone or the host screen", () => {
     const l = lobbyWith("Alex", "Cavan", "Blair");
     ok(l.act(l.id("Alex"), { type: "setCavan", playerId: l.id("Cavan") }));
     expect(
@@ -43,11 +43,15 @@ describe("designating Cavan", () => {
     ).toMatchObject({
       ok: false,
     });
-    // Cavan joined before Blair, but Blair takes over when Alex drops.
-    ok(
-      l.act(null, { type: "_presence", active: [], inactive: [l.id("Alex")] }),
-    );
-    expect(l.state.roles.gamemasterId).toBe(l.id("Blair"));
+    expect(
+      l.act(
+        null,
+        { type: "setGamemaster", playerId: l.id("Cavan") },
+        undefined,
+        { screen: true },
+      ),
+    ).toMatchObject({ ok: false });
+    expect(l.state.roles.gamemasterId).toBe(l.id("Alex"));
   });
 
   it("is cleared if Cavan is kicked", () => {
@@ -109,11 +113,12 @@ describe("vetting Cavan's phrases", () => {
     expect(
       l.act(gm, { type: "rejectPhrase", phraseId: id("second") }),
     ).toMatchObject({ ok: false });
-    // The rejected one frees a slot, but the same text can't come back.
-    expect(
-      l.act(cavan, { type: "submitPhrase", text: "second" }),
-    ).toMatchObject({ ok: false });
-    ok(l.act(cavan, { type: "submitPhrase", text: "replacement" }));
+    // The rejected one frees a slot. Any text is allowed (D53), even the
+    // same again: it just goes back to the GM to vet.
+    ok(l.act(cavan, { type: "submitPhrase", text: "second" }));
+    expect(viewFor(l.state, gm).moderation.map((p) => p.text)).toContain(
+      "second",
+    );
     const me = viewFor(l.state, cavan).players.find((p) => p.id === cavan);
     expect(me).toMatchObject({ phraseCount: 3, approvedCount: 1 });
     expect(checkInvariants(l.state)).toEqual([]);

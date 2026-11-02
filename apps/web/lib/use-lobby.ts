@@ -13,6 +13,7 @@ import {
   RECONNECT_MAX_DELAY_MS,
   RECONNECT_MIN_DELAY_MS,
   type ServerMessage,
+  type Skill,
 } from "@tmn/game";
 import usePartySocket from "partysocket/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -84,6 +85,9 @@ export function useLobby(
   const [timedOutAttempt, setTimedOutAttempt] = useState<number | null>(null);
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [emotes, setEmotes] = useState<EmoteBurst[]>([]);
+  // Whether the name screen asks for a level: yes until the lobby says it
+  // doesn't balance teams by skill (D62).
+  const [askSkill, setAskSkill] = useState(true);
   const emoteId = useRef(0);
   const lastPong = useRef(0);
   // Read inside socket handlers, so a ref rather than state avoids stale closures.
@@ -155,6 +159,7 @@ export function useLobby(
       type: "join",
       name: session.name,
       ...(session.token ? { token: session.token } : {}),
+      ...(session.skill ? { skill: session.skill } : {}),
     };
     socket.send(JSON.stringify(msg));
   }
@@ -165,6 +170,7 @@ export function useLobby(
         if (msg.as === "screen") saveScreen(code, { token: msg.token });
         else
           saveSession(code, {
+            ...loadSession(code),
             name: loadSession(code)?.name ?? "",
             token: msg.token,
           });
@@ -174,6 +180,9 @@ export function useLobby(
         setStatus("joined");
         return;
       }
+      case "lobbyInfo":
+        setAskSkill(msg.balanceTeams);
+        return;
       case "state":
         setView(msg.view);
         setClockOffset(msg.now - Date.now());
@@ -303,8 +312,8 @@ export function useLobby(
     return () => clearTimeout(timer);
   }, [notice]);
 
-  const submitName = (name: string) => {
-    saveSession(code, { name });
+  const submitName = (name: string, skill: Skill) => {
+    saveSession(code, { name, skill });
     sendHello();
   };
 
@@ -328,6 +337,7 @@ export function useLobby(
     emotes,
     connected,
     nameError,
+    askSkill,
     notice,
     dismissNotice: () => setNotice(null),
     goneReason,

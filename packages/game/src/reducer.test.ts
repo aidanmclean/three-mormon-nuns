@@ -239,20 +239,55 @@ describe("game master actions", () => {
 });
 
 describe("presence & game master handoff", () => {
-  it("passes GM to the earliest-joined active player when the GM drops", () => {
+  it("keeps the GM while they're offline; nobody inherits it (D52)", () => {
     const l = lobbyWith("Hazel", "Alex", "Sam");
     ok(
       l.act(null, { type: "_presence", active: [], inactive: [l.id("Hazel")] }),
     );
-    expect(l.state.roles.gamemasterId).toBe(l.id("Alex"));
-    // The original GM coming back doesn't take the role back (Q2).
+    expect(l.state.roles.gamemasterId).toBe(l.id("Hazel"));
+    expect(checkInvariants(l.state)).toEqual([]);
+    // Others can't take it, even with the GM away.
+    expect(
+      l.act(l.id("Alex"), { type: "setGamemaster", playerId: l.id("Alex") }),
+    ).toMatchObject({ ok: false, code: "FORBIDDEN" });
     ok(
       l.act(null, { type: "_presence", active: [l.id("Hazel")], inactive: [] }),
     );
-    expect(l.state.roles.gamemasterId).toBe(l.id("Alex"));
+    expect(l.state.roles.gamemasterId).toBe(l.id("Hazel"));
   });
 
-  it("keeps the GM when everyone is inactive, then hands it to the next joiner", () => {
+  it("lets the host screen hand the GM role to a connected player (D52)", () => {
+    const l = lobbyWith("Hazel", "Alex", "Sam");
+    ok(
+      l.act(null, { type: "_presence", active: [], inactive: [l.id("Hazel")] }),
+    );
+    const screen = { screen: true };
+    // Only to someone connected, and the screen can't do anything else.
+    ok(l.act(null, { type: "_presence", active: [], inactive: [l.id("Sam")] }));
+    expect(
+      l.act(
+        null,
+        { type: "setGamemaster", playerId: l.id("Sam") },
+        undefined,
+        screen,
+      ),
+    ).toMatchObject({ ok: false, code: "INVALID" });
+    expect(
+      l.act(null, { type: "startTeams" }, undefined, screen),
+    ).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    ok(
+      l.act(
+        null,
+        { type: "setGamemaster", playerId: l.id("Alex") },
+        undefined,
+        screen,
+      ),
+    );
+    expect(l.state.roles.gamemasterId).toBe(l.id("Alex"));
+    expect(checkInvariants(l.state)).toEqual([]);
+  });
+
+  it("gives an empty lobby's GM role to the next joiner only if the GM is gone", () => {
     const l = lobbyWith("Hazel", "Alex");
     ok(
       l.act(null, {
@@ -262,9 +297,8 @@ describe("presence & game master handoff", () => {
       }),
     );
     expect(l.state.roles.gamemasterId).toBe(l.id("Hazel"));
-    const res = ok(l.act(null, { type: "join", name: "Sam" }));
-    const sam = res.effects[0]?.type === "bound" ? res.effects[0].playerId : "";
-    expect(l.state.roles.gamemasterId).toBe(sam);
+    ok(l.act(null, { type: "join", name: "Sam" }));
+    expect(l.state.roles.gamemasterId).toBe(l.id("Hazel"));
     expect(checkInvariants(l.state)).toEqual([]);
   });
 

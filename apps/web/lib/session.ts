@@ -2,12 +2,14 @@
 // the same player (D7). Storage can be unavailable (private mode, blocked
 // site data), so every access is guarded and failure just means "no session".
 
-import type { Config } from "@tmn/game";
+import type { Config, Skill } from "@tmn/game";
 
 /** A player's session on their phone. */
 export interface Session {
   name: string;
   token?: string;
+  /** Picked on the name screen; sent when joining by name (D51). */
+  skill?: Skill;
 }
 
 /** The host screen's session (D18). */
@@ -67,6 +69,12 @@ export function saveSession(code: string, session: Session, device?: string) {
   } catch {
     // Without storage, reconnects fall back to rejoining by name.
   }
+}
+
+/** Keeps a level changed in the lobby for the next name screen (D51). */
+export function rememberSkill(code: string, skill: Skill) {
+  const session = loadSession(code);
+  if (session) saveSession(code, { ...session, skill });
 }
 
 export function clearSession(code: string) {

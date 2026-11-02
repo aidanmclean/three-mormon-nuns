@@ -1,6 +1,6 @@
 import { BACKDOOR_UNLOCKED, backdoorFor } from "./backdoor-codes";
 import { PHRASE_MAX_LEN } from "./constants";
-import { cleanName, nameKey } from "./names";
+import { cleanName } from "./names";
 import type { Action, Ctx, Result } from "./reducer";
 import type { LobbyState, Player } from "./types";
 
@@ -75,8 +75,6 @@ export function phraseAction(
       .length >= state.config.phrasesPerPlayer
   )
     return fail("You have already written all your phrases.");
-  if (existing.some((p) => nameKey(p.text) === nameKey(text)))
-    return fail("That phrase is already in the pile.");
   const id = ctx.newId();
   return {
     ok: true,

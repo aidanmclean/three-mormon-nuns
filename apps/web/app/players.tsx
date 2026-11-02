@@ -1,10 +1,10 @@
 "use client";
 
 import { type LobbyView, NAME_MAX_LEN, type PlayerView } from "@tmn/game";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import type { LobbyAction } from "@/lib/use-lobby";
 import { Icon } from "./icons";
-import { Avatar, Fold, PlayerName } from "./phone";
+import { Avatar, Fold, PlayerName, SkillTag, seesSkill } from "./phone";
 
 type Send = (action: LobbyAction) => void;
 
@@ -17,6 +17,7 @@ export function PlayerList({
   send,
   cavanEditable = false,
   placeable = false,
+  extra,
 }: {
   view: LobbyView;
   send: Send;
@@ -24,8 +25,11 @@ export function PlayerList({
   cavanEditable?: boolean;
   /** Waiting players can be put on a team after team selection (D31). */
   placeable?: boolean;
+  /** Something per row before the GM's menu button, e.g. writing progress. */
+  extra?: (player: PlayerView) => ReactNode;
 }) {
   const amGm = view.players.find((p) => p.id === view.you)?.isGamemaster;
+  const skill = seesSkill(view);
   const [open, setOpen] = useState<string | null>(null);
   return (
     <ul className="m-list">
@@ -37,8 +41,15 @@ export function PlayerList({
               player={player}
               you={player.id === view.you}
               showCavan={amGm}
+              stacked={skill}
+              tags={
+                <>
+                  {player.waiting && <span className="m-chip">waiting</span>}
+                  {skill && <SkillTag skill={player.skill} />}
+                </>
+              }
             />
-            {player.waiting && <span className="m-chip">waiting</span>}
+            {extra?.(player)}
             {amGm && (
               <button
                 type="button"

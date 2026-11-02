@@ -61,19 +61,21 @@ describe("the server wheel", () => {
   it("persists the chosen result and time, assigns only at the deadline, and appoints first-drawn captains", () => {
     const l = lobbyWith("Alex", "Blair", "Casey", "Drew");
     ok(l.act(l.id("Alex"), { type: "startTeams" }, () => 0.99));
-    expect(l.state.lastDraw?.playerId).toBe(l.id("Drew"));
+    // The server picks the winner when the spin starts (balanced by skill, D51).
+    const drawn = l.state.lastDraw?.playerId ?? "";
+    expect(Object.keys(l.state.players)).toContain(drawn);
     expect(l.state.lastDraw?.candidates).toHaveLength(4);
-    expect(l.state.players[l.id("Drew")]?.teamId).toBeNull();
+    expect(l.state.players[drawn]?.teamId).toBeNull();
     const before = l.state;
     l.tick(WHEEL_SPIN_MS - 1);
     expect(ok(l.act(null, { type: "_draftTick" })).state).toBe(before);
     l.tick(1);
     ok(l.act(null, { type: "_draftTick" }));
-    expect(l.state.teams["team-1"]?.captainId).toBe(l.id("Drew"));
+    expect(l.state.teams["team-1"]?.captainId).toBe(drawn);
     expect(l.state.draft?.stage).toBe("revealing");
     finishDraft(l);
-    expect(l.state.teams["team-1"]?.captainId).toBe(l.id("Drew"));
-    expect(l.state.teams["team-1"]?.memberIds[0]).toBe(l.id("Drew"));
+    expect(l.state.teams["team-1"]?.captainId).toBe(drawn);
+    expect(l.state.teams["team-1"]?.memberIds[0]).toBe(drawn);
     expect(Object.values(l.state.teams).map((t) => t.memberIds.length)).toEqual(
       [2, 2],
     );

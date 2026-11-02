@@ -4,6 +4,7 @@ import {
   isValidCode,
   NAME_MAX_LEN,
   normalizeCode,
+  type Skill,
   validateName,
 } from "@tmn/game";
 import { useState } from "react";
@@ -11,13 +12,17 @@ import { Logo } from "@/app/brand";
 import { Icon } from "@/app/icons";
 import { LobbyConnection } from "@/app/lobby-connection";
 import { Message } from "@/app/message";
+import { SkillPicker } from "@/app/phone";
 import { loadSession } from "@/lib/session";
 import { useLobby } from "@/lib/use-lobby";
+import { useWakeLock } from "@/lib/use-wake-lock";
 import { LobbyScreen } from "./lobby-screen";
 
 export function Game({ code: rawCode }: { code: string }) {
   const code = normalizeCode(rawCode);
   const lobby = useLobby(code, "player");
+  // A locked phone drops out of the game; keep it awake while joined (D55).
+  useWakeLock(lobby.status === "joined");
 
   if (!isValidCode(code)) return <Message title="That's not a lobby code." />;
 
@@ -68,6 +73,7 @@ function Body({
         <NameForm
           code={code}
           error={lobby.nameError}
+          askSkill={lobby.askSkill}
           onSubmit={lobby.submitName}
         />
       );
@@ -118,13 +124,19 @@ function Body({
 function NameForm({
   code,
   error,
+  askSkill,
   onSubmit,
 }: {
   code: string;
   error: string | null;
-  onSubmit: (name: string) => void;
+  /** Hidden when the lobby doesn't balance teams by skill (D62). */
+  askSkill: boolean;
+  onSubmit: (name: string, skill: Skill) => void;
 }) {
   const [name, setName] = useState(() => loadSession(code)?.name ?? "");
+  const [skill, setSkill] = useState<Skill>(
+    () => loadSession(code)?.skill ?? "intermediate",
+  );
   const [localError, setLocalError] = useState<string | null>(null);
   const shown = localError ?? error;
 
@@ -146,7 +158,7 @@ function NameForm({
           e.preventDefault();
           const check = validateName(name);
           if (!check.ok) return setLocalError(check.message);
-          onSubmit(check.name);
+          onSubmit(check.name, skill);
         }}
       >
         <h1 className="m-title">What’s your name?</h1>
@@ -169,6 +181,7 @@ function NameForm({
         <p className="m-count-line">
           {[...name.trim()].length} / {NAME_MAX_LEN}
         </p>
+        {askSkill && <SkillPicker value={skill} onChange={setSkill} />}
         {shown && (
           <p role="alert" className="m-error">
             {shown}

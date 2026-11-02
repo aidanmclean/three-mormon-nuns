@@ -1,6 +1,6 @@
 "use client";
 
-import { canSendEmote, EMOTES, type LobbyView } from "@tmn/game";
+import { canSendEmote, EMOTES, type LobbyView, type TurnView } from "@tmn/game";
 import { type CSSProperties, type ReactNode, useState } from "react";
 import type { LobbyAction } from "@/lib/use-lobby";
 import {
@@ -47,6 +47,11 @@ export function GameScreen({
     view.players.find((p) => p.isGamemaster)?.name ?? "the game master";
   const playing = !!me?.teamId && !me.waiting;
   const describing = mine && view.phase === "turnActive";
+  // Offline players keep their turn (D54): it waits, or pauses, until they're
+  // back or the GM swaps them.
+  const upOffline =
+    !!turn &&
+    view.players.find((p) => p.id === turn.playerId)?.status === "inactive";
   const acked = game.acknowledged.includes(view.you ?? "");
   const readyCount = game.acknowledged.length;
   const readyTotal = view.players.filter(
@@ -80,11 +85,22 @@ export function GameScreen({
     );
   } else if (view.phase === "turnReady" && amGm) {
     dock = turn ? (
-      <BigButton icon="play" onClick={() => send({ type: "startTurn" })}>
-        Start {mine ? "my" : `${up}’s`} turn
-      </BigButton>
+      <>
+        <BigButton
+          icon="play"
+          disabled={upOffline}
+          onClick={() => send({ type: "startTurn" })}
+        >
+          Start {mine ? "my" : `${up}’s`} turn
+        </BigButton>
+        {upOffline && (
+          <DockHint>
+            {up} is offline. Wait, or skip their turn in Turn options.
+          </DockHint>
+        )}
+      </>
     ) : (
-      <DockHint>Waiting for someone on a team to connect.</DockHint>
+      <DockHint>Nobody is on a team right now.</DockHint>
     );
   } else if (describing && turn && countdown <= 0) {
     dock = (
@@ -97,43 +113,24 @@ export function GameScreen({
         >
           Got it
         </BigButton>
-        <button
-          type="button"
-          className="m-btn-small m-btn-wide"
-          disabled={turn.points === 0}
-          onClick={() => send({ type: "back" })}
-        >
-          <Icon name="arrowLeft" /> Undo last
-        </button>
+        {/* A GM describing still runs the clock (D61). */}
+        <div className={amGm ? "m-btn-row m-btn-row-3" : undefined}>
+          <button
+            type="button"
+            className={`m-btn-small ${amGm ? "" : "m-btn-wide"}`}
+            disabled={turn.points === 0}
+            onClick={() => send({ type: "back" })}
+          >
+            <Icon name="arrowLeft" /> {amGm ? "Undo" : "Undo last"}
+          </button>
+          {amGm && <ClockButtons turn={turn} send={send} />}
+        </div>
       </>
     );
   } else if (view.phase === "turnActive" && amGm && turn) {
     dock = (
       <div className="m-btn-row">
-        {turn.paused ? (
-          <button
-            type="button"
-            className="m-btn-small m-btn-small-strong"
-            onClick={() => send({ type: "resumeTimer" })}
-          >
-            <Icon name="play" /> Resume
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="m-btn-small"
-            onClick={() => send({ type: "pauseTimer" })}
-          >
-            <Icon name="pause" /> Pause
-          </button>
-        )}
-        <button
-          type="button"
-          className="m-btn-small"
-          onClick={() => send({ type: "endTurn" })}
-        >
-          <Icon name="stop" /> End turn
-        </button>
+        <ClockButtons turn={turn} send={send} blocked={upOffline} />
       </div>
     );
   } else if (view.phase === "turnReview" && amGm) {
@@ -195,12 +192,15 @@ export function GameScreen({
               </p>
               <p className="m-clock">{clockText(turn.remainingMs)}</p>
               {turn.carried && <p className="m-note">Time carried over</p>}
+              {upOffline && (
+                <p className="m-paused">Waiting for {up} to reconnect</p>
+              )}
               {mine && !amGm && (
                 <p className="m-note">{gm} starts your turn.</p>
               )}
             </>
           ) : (
-            <p className="m-sub">Waiting for someone on a team to connect.</p>
+            <p className="m-sub">Nobody is on a team right now.</p>
           )}
         </section>
       )}
@@ -245,7 +245,11 @@ export function GameScreen({
           <p className="m-sub">
             <strong>{turn.points}</strong> guessed so far
           </p>
-          {turn.paused && <p className="m-paused">Paused</p>}
+          {turn.paused && (
+            <p className="m-paused">
+              {upOffline ? `Paused: ${up} lost connection` : "Paused"}
+            </p>
+          )}
           {amGm && turn.revealed && turn.currentPhrase && (
             <p className="m-phrase-peek">{turn.currentPhrase}</p>
           )}
@@ -308,6 +312,48 @@ export function GameScreen({
   );
 }
 
+/** The GM's clock controls: pause or resume, and end the turn. */
+function ClockButtons({
+  turn,
+  send,
+  blocked = false,
+}: {
+  turn: TurnView;
+  send: Send;
+  /** The describer is offline, so the clock can't restart (D54). */
+  blocked?: boolean;
+}) {
+  return (
+    <>
+      {turn.paused ? (
+        <button
+          type="button"
+          className="m-btn-small m-btn-small-strong"
+          disabled={blocked}
+          onClick={() => send({ type: "resumeTimer" })}
+        >
+          <Icon name="play" /> Resume
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="m-btn-small"
+          onClick={() => send({ type: "pauseTimer" })}
+        >
+          <Icon name="pause" /> Pause
+        </button>
+      )}
+      <button
+        type="button"
+        className="m-btn-small"
+        onClick={() => send({ type: "endTurn" })}
+      >
+        <Icon name="stop" /> End turn
+      </button>
+    </>
+  );
+}
+
 /** A bar that drains as the turn runs down. */
 function TimeBar({ left, total }: { left: number; total: number }) {
   const fraction = Math.max(0, Math.min(1, left / Math.max(total, left, 1)));
@@ -334,15 +380,11 @@ function GmTools({ view, send }: { view: LobbyView; send: Send }) {
     .map((id) => view.players.find((p) => p.id === id))
     .filter((p) => p !== undefined);
   // The server refuses a skip with nobody to swap in (D41); say so up front
-  // instead of letting the tap fail.
+  // instead of letting the tap fail. Offline teammates count (D54).
   const canSwap =
     !!turn &&
     view.players.some(
-      (p) =>
-        p.teamId === turn.teamId &&
-        p.id !== turn.playerId &&
-        p.status === "active" &&
-        !p.waiting,
+      (p) => p.teamId === turn.teamId && p.id !== turn.playerId && !p.waiting,
     );
   return (
     <>
@@ -364,7 +406,7 @@ function GmTools({ view, send }: { view: LobbyView; send: Send }) {
               <p className="m-note">
                 {canSwap
                   ? `The next player on ${teamName(view, turn.teamId)} goes now; ${mine ? "you go" : `${up} goes`} on the team’s next turn.`
-                  : `Nobody else on ${teamName(view, turn.teamId)} is connected to swap in.`}
+                  : `Nobody else on ${teamName(view, turn.teamId)} can swap in.`}
               </p>
             </div>
           )}
@@ -406,15 +448,21 @@ function GmTools({ view, send }: { view: LobbyView; send: Send }) {
               {owed.map((p) => (
                 <p key={p.id} className="m-note">
                   {p.name} ({teamName(view, p.teamId ?? undefined)})
-                  {p.status !== "active" && " · offline, waits until back"}
+                  {p.status !== "active" && " · offline"}
                 </p>
               ))}
             </div>
           )}
-          {game.canRestartPrevious &&
+          {/* In review, this turn hasn't counted yet, so it can be replayed
+              right away; afterwards, the previous one can (D61). */}
+          {view.phase === "turnReview" ? (
+            <RestartPrevious view={view} send={send} current />
+          ) : (
+            game.canRestartPrevious &&
             ["turnReady", "roundIntro", "results"].includes(view.phase) && (
               <RestartPrevious view={view} send={send} />
-            )}
+            )
+          )}
         </div>
       </Fold>
       <ManagePlayers view={view} send={send} />
@@ -422,7 +470,16 @@ function GmTools({ view, send }: { view: LobbyView; send: Send }) {
   );
 }
 
-function RestartPrevious({ view, send }: { view: LobbyView; send: Send }) {
+function RestartPrevious({
+  view,
+  send,
+  current = false,
+}: {
+  view: LobbyView;
+  send: Send;
+  /** Restarting the turn in review rather than the one before. */
+  current?: boolean;
+}) {
   const [seconds, setSeconds] = useState(view.config.roundLengthSec);
   return (
     <form
@@ -432,8 +489,14 @@ function RestartPrevious({ view, send }: { view: LobbyView; send: Send }) {
         send({ type: "restartPrevTurn", ms: seconds * 1000 });
       }}
     >
-      <p className="m-label">Restart the previous turn</p>
-      <p className="m-note">Undoes its points and puts its phrases back.</p>
+      <p className="m-label">
+        {current ? "Restart this turn" : "Restart the previous turn"}
+      </p>
+      <p className="m-note">
+        {current
+          ? "Its guesses won't count. Same player, fresh clock."
+          : "Undoes its points and puts its phrases back."}
+      </p>
       <div className="m-inline-form">
         <input
           aria-label="Seconds for the restarted turn"

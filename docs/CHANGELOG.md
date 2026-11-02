@@ -2,6 +2,34 @@
 
 Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE.md](./ARCHITECTURE.md#3-decision-log)) where there is one. Every change gets an entry; see [AGENTS.md](../AGENTS.md).
 
+## 2026-11-02
+
+- **Changed:** with **Balance teams by skill** off, levels disappear: the name screen doesn't ask, the lobby has no "Your level" row, and the GM's lists show no tags. The server tells a socket that one setting when it connects, before it joins ([D62](./ARCHITECTURE.md#d62-levels-only-come-up-when-the-wheel-balances-by-them)).
+- **Changed:** name rows. Tags ("you", "captain", "waiting", "offline") sit beside the name. On the GM's lists, where every row has a level, they go on a second line for every row, so the rows all match ([D63](./ARCHITECTURE.md#d63-name-rows-tags-beside-the-name-or-stacked-where-everyone-has-a-level)).
+- **Changed:** during writing, the GM has one **Everyone** list with each player's progress and their ⋯ menu, instead of separate **Everyone** and **Players** folds.
+- **Changed:** the captain tag on the wheel's team chips is a yellow pill, centred with the name.
+- **Changed:** randomness. The server uses the platform's cryptographic random source. The wheel's names start shuffled, and the phrase pile is reshuffled every time someone starts a turn ([D58](./ARCHITECTURE.md#d58-fairer-randomness-and-balancing-by-skill-is-a-house-rule)).
+- **Added:** a **Balance teams by skill** house rule, on by default, on the host setup page and in the GM's lobby rules. Off, the wheel is completely random (team sizes still stay even). Protocol 10: deploy party before web.
+- **Changed:** only the GM sees skill levels. Players see their own on the "Your level" row, and the TV sees none. All three level tags look the same ([D59](./ARCHITECTURE.md#d59-only-the-gm-sees-skill-levels-name-rows-put-tags-on-a-second-line)).
+- **Changed:** player rows put "you", "captain", "waiting", the level and "offline" on a small line under the name, so a GM who's also captain no longer wraps oddly.
+- **Changed:** the turn's colour goes on the card with the clock and name (and the describer's phrase card), not the whole page ([D60](./ARCHITECTURE.md#d60-the-turns-colour-goes-on-the-card-not-the-page)).
+- **Added:** a GM describing their own turn gets **Undo**, **Pause**/**Resume** and **End turn**. **Turn options** in review can **Restart this turn** before it counts; **Restart the previous turn** still works afterwards ([D61](./ARCHITECTURE.md#d61-a-gm-can-run-their-own-turn-and-restart-a-turn-from-its-review)).
+- **Fixed:** a React duplicate-key warning in the guessed list when the same phrase was guessed twice in a turn (possible since D53).
+- **Tests:** 113 in total. The game property test now picks the core turn buttons a bit more often; its coverage guard had started failing about once in 15–25 runs.
+- **Added:** a skill level for every player: noob (never played), intermediate (played before, knows the rules) or expert (played a lot). It's picked on the name screen and can be changed in the lobby ("Your level"). The lobby list shows everyone's level ([D51](./ARCHITECTURE.md#d51-players-pick-a-skill-level-and-the-wheel-balances-teams-by-it)).
+- **Changed:** the wheel balances teams by skill as well as size, while draws and captains stay random. **Spin the rest** does the same.
+- **Changed:** the game master keeps the role while offline. The TV can hand it to someone else: **Change** in the footer, or **New game master** on the alert shown while the GM is offline. It's the only thing the TV can do ([D52](./ARCHITECTURE.md#d52-the-game-master-keeps-the-role-while-offline-the-host-screen-can-hand-it-on)).
+- **Changed:** phrases may repeat, yours or someone else's. Quota, length and word limits still apply ([D53](./ARCHITECTURE.md#d53-phrases-may-repeat)).
+- **Changed:** offline players keep their turn ([D54](./ARCHITECTURE.md#d54-offline-players-keep-their-turn-a-dropped-describer-pauses-the-clock)).
+  - When they're up, the turn waits for them; **Start** is disabled and the screens say "Waiting for Casey to reconnect".
+  - If they drop mid-turn, the clock pauses ("Paused: Casey lost connection") instead of the turn ending, and it can't resume until they're back.
+  - The GM can still skip them; the swap no longer needs a connected teammate.
+- **Added:** the TV and phones keep their screens awake while in a lobby (Screen Wake Lock; HTTPS or `localhost` only) ([D55](./ARCHITECTURE.md#d55-the-tv-and-phones-keep-their-screens-on)).
+- **Added:** from "Up next" through review, the TV and every phone take the colour of the team that's up ([D56](./ARCHITECTURE.md#d56-the-screen-takes-the-colour-of-the-team-thats-up)).
+- **Added:** a QR code on the TV lobby that opens the lobby's name screen, above the typed join steps. New dependency `uqr` 0.1.3 ([D57](./ARCHITECTURE.md#d57-a-qr-code-on-the-tv-joins-straight-into-the-lobby)).
+- **Changed:** schema 12 (protocol stays 9: every change is additive). Deploy party before web; stored lobbies reset.
+- **Tests:** `skill.test.ts`, plus new and rewritten tests for the offline GM, the screen's handoff, repeats and offline turns (109 in total). The lobby e2e covers the GM keeping the role, the screen's handoff and refusals, repeats and skill levels (69 checks).
+
 ## 2026-11-01
 
 - **Fixed (docs):** the README's deploy command for the lobby Worker is `pnpm --filter @tmn/party run deploy`. Without `run`, pnpm runs its own built-in `deploy` command and fails with `ERR_PNPM_INVALID_DEPLOY_TARGET`.

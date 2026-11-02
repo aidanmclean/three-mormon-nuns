@@ -12,7 +12,7 @@ import {
 import { nameKey, validateName } from "./names";
 import { moderationAction, phraseAction } from "./phrases";
 import type { ClientMessage, EmoteKind, ErrorCode } from "./protocol";
-import type { LobbyState, Player, PlayerId } from "./types";
+import type { LobbyState, Player, PlayerId, Skill } from "./types";
 
 /** Actions only the server shell issues. They aren't in ClientMessage, so clients can't send them. */
 export type ServerAction =
@@ -34,6 +34,8 @@ export interface Ctx {
   newId: () => string;
   /** Server-owned randomness; tests can supply a deterministic source. */
   rng?: () => number;
+  /** Sent by a bound host screen, which may only hand off the GM role (D52). */
+  screen?: boolean;
 }
 
 /** Side effects the shell must carry out (it owns the sockets). */
@@ -129,7 +131,7 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
     case "_touch":
       return done({ ...state });
     case "join":
-      return join(state, action.name, action.token, ctx);
+      return join(state, action.name, action.token, action.skill, ctx);
     case "screen":
       // The shell only lets unbound sockets send this.
       if (action.token !== state.screenToken) {
@@ -146,6 +148,13 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       };
   }
 
+  // A host screen can do one thing: pick a new GM, e.g. when the GM's phone
+  // died (D52). It never acts as a player.
+  if (ctx.screen)
+    return action.type === "setGamemaster"
+      ? setGamemaster(state, action.playerId, true)
+      : fail("FORBIDDEN", "The host screen can't do that.");
+
   // Player identity comes from the socket binding (§6.3). Team actions have
   // player/captain permissions (D22); remaining controls belong to the GM.
   const actor = ctx.actorId === null ? undefined : state.players[ctx.actorId];
@@ -154,6 +163,10 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
     return fail("FORBIDDEN", "Reconnect before making changes.");
   if (["nameTeam", "addToTeam", "removeFromTeam"].includes(action.type)) {
     return changeTeam(state, action, actor);
+  }
+  if (action.type === "setSkill") {
+    if (actor.skill === action.skill) return done(state);
+    return done(withPlayer(state, { ...actor, skill: action.skill }));
   }
   if (action.type === "submitPhrase" || action.type === "deletePhrase")
     return phraseAction(state, action, actor, ctx);
@@ -265,23 +278,32 @@ function apply(state: LobbyState, action: Action, ctx: Ctx): Result {
       }
       return done(withPlayer(state, { ...target, name: check.name }));
     }
-    case "setGamemaster": {
-      const target = state.players[action.playerId];
-      if (!target) return fail("INVALID", "That player isn't in the lobby.");
-      if (target.status !== "active")
-        return fail("INVALID", `${target.name} isn't connected right now.`);
-      if (target.id === state.roles.cavanId)
-        return fail(
-          "INVALID",
-          "Cavan can't be game master: the GM vets Cavan.",
-        );
-      return done({
-        ...state,
-        roles: { ...state.roles, gamemasterId: target.id },
-      });
-    }
+    case "setGamemaster":
+      return setGamemaster(state, action.playerId);
   }
   return fail("INVALID", "Unknown action.");
+}
+
+/** The GM (or the host screen, D52) hands the role to a connected player. */
+function setGamemaster(
+  state: LobbyState,
+  playerId: PlayerId,
+  fromScreen = false,
+): Result {
+  const target = state.players[playerId];
+  if (!target) return fail("INVALID", "That player isn't in the lobby.");
+  if (target.status !== "active")
+    return fail("INVALID", `${target.name} isn't connected right now.`);
+  // The TV is public, so it mustn't say who Cavan is (D40).
+  if (target.id === state.roles.cavanId)
+    return fail(
+      "INVALID",
+      fromScreen
+        ? `${target.name} can't be game master. Pick someone else.`
+        : "Cavan can't be game master: the GM vets Cavan.",
+    );
+  if (target.id === state.roles.gamemasterId) return done(state);
+  return done({ ...state, roles: { ...state.roles, gamemasterId: target.id } });
 }
 
 /** Join rules, in order (§5.6): token → inactive name → active name → new player. */
@@ -289,6 +311,7 @@ function join(
   state: LobbyState,
   rawName: string,
   token: string | undefined,
+  skill: Skill | undefined,
   ctx: Ctx,
 ): Result {
   if (ctx.actorId !== null && state.players[ctx.actorId])
@@ -312,7 +335,7 @@ function join(
     }
     // Rejoin as an inactive player, e.g. after a phone died. A new token
     // invalidates whatever device they were on before.
-    return bind(state, existing, ctx.newId());
+    return bind(state, skill ? { ...existing, skill } : existing, ctx.newId());
   }
 
   if (Object.keys(state.players).length >= state.config.maxPlayers) {
@@ -324,6 +347,7 @@ function join(
     check.name,
     ctx,
     state.phase !== "lobby" && state.phase !== "teams",
+    skill ?? "intermediate",
   );
   return done(
     { ...state, players: { ...state.players, [player.id]: player } },
@@ -357,9 +381,10 @@ function presence(
 }
 
 /**
- * Keeps someone connected in control so the game never gets stuck (§5.6):
- * the first player to join becomes GM, and if the GM drops, the role passes
- * to the earliest-joined active player.
+ * The first player to join becomes GM. The role stays with them while they're
+ * offline (a locked phone shouldn't hand the game to someone else); it moves
+ * only if they're removed, or when the GM or the host screen hands it off
+ * (D52).
  */
 function normalizeRoles(state: LobbyState): LobbyState {
   let { gamemasterId, cavanId } = state.roles;
@@ -371,9 +396,7 @@ function normalizeRoles(state: LobbyState): LobbyState {
     everyone.find((p) => p.status === "active");
 
   const gm = gamemasterId === null ? undefined : state.players[gamemasterId];
-  if (!gm || (gm.status !== "active" && firstActive)) {
-    gamemasterId = firstActive?.id ?? everyone[0]?.id ?? null;
-  }
+  if (!gm) gamemasterId = firstActive?.id ?? everyone[0]?.id ?? null;
 
   const { roles } = state;
   if (gamemasterId === roles.gamemasterId && cavanId === roles.cavanId)
@@ -381,7 +404,12 @@ function normalizeRoles(state: LobbyState): LobbyState {
   return { ...state, roles: { gamemasterId, cavanId } };
 }
 
-function newPlayer(name: string, ctx: Ctx, waiting: boolean): Player {
+function newPlayer(
+  name: string,
+  ctx: Ctx,
+  waiting: boolean,
+  skill: Skill,
+): Player {
   return {
     id: ctx.newId(),
     name,
@@ -391,6 +419,7 @@ function newPlayer(name: string, ctx: Ctx, waiting: boolean): Player {
     waiting,
     joinedAt: ctx.now,
     backdoors: [],
+    skill,
   };
 }
 

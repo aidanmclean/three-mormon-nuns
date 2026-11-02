@@ -1,7 +1,9 @@
 import type { BackdoorId } from "./backdoors";
 import type { Config } from "./config";
+import type { SKILLS } from "./constants";
 
 export type PlayerId = string;
+export type Skill = (typeof SKILLS)[number];
 export type TeamId = string;
 
 export interface Team {
@@ -118,6 +120,8 @@ export interface Player {
   joinedAt: number;
   /** Backdoors this player opened this game (D48). Only their own view sees them. */
   backdoors: BackdoorId[];
+  /** Self-reported experience; the wheel balances teams by it (D51). */
+  skill: Skill;
 }
 
 /**

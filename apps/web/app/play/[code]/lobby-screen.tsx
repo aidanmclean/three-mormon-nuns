@@ -3,11 +3,18 @@
 import type { LobbyView, TeamMode } from "@tmn/game";
 import { useState } from "react";
 import { GameScreen } from "@/app/game-screen";
-import { BigButton, DockHint, Fold, PhoneShell } from "@/app/phone";
+import {
+  BigButton,
+  DockHint,
+  Fold,
+  PhoneShell,
+  SkillPicker,
+} from "@/app/phone";
 import { PlayerList } from "@/app/players";
 import { Settings } from "@/app/settings";
 import { TeamBoard } from "@/app/team-board";
 import { WritingScreen } from "@/app/writing-screen";
+import { rememberSkill } from "@/lib/session";
 import type { LobbyAction } from "@/lib/use-lobby";
 
 type Send = (action: LobbyAction) => void;
@@ -77,6 +84,18 @@ function Lobby({ view, send }: { view: LobbyView; send: Send }) {
         </p>
       </section>
 
+      {/* No level to pick when the wheel ignores levels (D62). */}
+      {me && view.config.balanceTeams && (
+        <SkillPicker
+          compact
+          value={me.skill ?? "intermediate"}
+          onChange={(skill) => {
+            send({ type: "setSkill", skill });
+            rememberSkill(view.code, skill);
+          }}
+        />
+      )}
+
       <section className="m-card m-card-flush">
         <div className="m-card-head">
           <h2>Players</h2>
@@ -92,7 +111,13 @@ function Lobby({ view, send }: { view: LobbyView; send: Send }) {
           <legend>How should teams be made?</legend>
           {(
             [
-              ["wheel", "Spin the wheel", "Random and even"],
+              [
+                "wheel",
+                "Spin the wheel",
+                view.config.balanceTeams
+                  ? "Random, balanced by level"
+                  : "Completely random",
+              ],
               ["manual", "Pick them myself", "You choose"],
             ] as const
           ).map(([mode, title, detail]) => (

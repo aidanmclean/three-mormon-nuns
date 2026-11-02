@@ -1,7 +1,15 @@
-import { WHEEL_REVEAL_MS, WHEEL_SPIN_MS } from "./constants";
+import { SKILL_POINTS, WHEEL_REVEAL_MS, WHEEL_SPIN_MS } from "./constants";
 import { nameKey, validateName } from "./names";
+import { shuffled } from "./random";
 import type { Action, Ctx, Result } from "./reducer";
-import type { LobbyState, Player, Team, TeamMode } from "./types";
+import type {
+  LobbyState,
+  Player,
+  PlayerId,
+  Team,
+  TeamId,
+  TeamMode,
+} from "./types";
 
 const done = (state: LobbyState): Result => ({ ok: true, state, effects: [] });
 const invalid = (message: string): Result => ({
@@ -21,9 +29,13 @@ export function startDraft(
       code: "WRONG_PHASE",
       message: "Team selection has already started.",
     };
-  const remainingIds = Object.values(state.players)
-    .filter((p) => p.status === "active")
-    .map((p) => p.id);
+  // A shuffled queue, so the wheel's names aren't in join order (D58).
+  const remainingIds = shuffled(
+    Object.values(state.players)
+      .filter((p) => p.status === "active")
+      .map((p) => p.id),
+    ctx.rng,
+  );
   if (remainingIds.length < state.config.teamCount)
     return invalid(
       `You need at least ${state.config.teamCount} connected players.`,
@@ -98,20 +110,34 @@ function nextSpin(state: LobbyState, ctx: Ctx): LobbyState {
       ...state,
       draft: { ...draft, remainingIds: [], stage: "complete", nextAt: null },
     };
-  // Choose the smallest team, rotating ties. Normally this is A, B, A, B.
+  // Fill the smallest team, rotating ties: normally A, B, A, B.
   const order = [
     ...state.teamOrder.slice(draft.nextTeamIndex),
     ...state.teamOrder.slice(0, draft.nextTeamIndex),
   ];
-  const teamId = order.reduce(
-    (best, id) =>
-      (state.teams[id]?.memberIds.length ?? 0) <
-      (state.teams[best]?.memberIds.length ?? 0)
-        ? id
-        : best,
-    order[0] ?? "",
-  );
-  const pick = candidates[Math.floor((ctx.rng?.() ?? 0) * candidates.length)];
+  const size = (id: TeamId) => state.teams[id]?.memberIds.length ?? 0;
+  const smallest = Math.min(...order.map(size));
+  // Balance by skill (D51): plan an even split of everyone still unplaced,
+  // then draw at random from those planned for this team. With the house
+  // rule off, anyone unplaced can be drawn (D58).
+  const plan = state.config.balanceTeams
+    ? balancedPlan(
+        state,
+        candidates.flatMap((c) => state.players[c.id] ?? []),
+        order,
+        ctx,
+      )
+    : null;
+  const planned = new Set(plan?.values());
+  const teamId =
+    order.find((id) => size(id) === smallest && (!plan || planned.has(id))) ??
+    order.find((id) => size(id) === smallest) ??
+    "";
+  const pool = plan
+    ? candidates.filter((c) => plan.get(c.id) === teamId)
+    : candidates;
+  const from = pool.length ? pool : candidates;
+  const pick = from[Math.floor((ctx.rng?.() ?? 0) * from.length)];
   if (!pick || !state.teams[teamId]) return state;
   const endsAt = ctx.now + WHEEL_SPIN_MS;
   return {
@@ -133,6 +159,81 @@ function nextSpin(state: LobbyState, ctx: Ctx): LobbyState {
       endsAt,
     },
   };
+}
+
+const points = (p: Player | undefined) =>
+  SKILL_POINTS[p?.skill ?? "intermediate"];
+
+/**
+ * An even split of the unplaced players (D51). Team sizes come first: they
+ * end up within one of each other. Then the strongest players go first, each
+ * to the open team with the lowest skill total, and swapping pairs of
+ * unplaced players between teams evens the totals out further. Equal players
+ * are shuffled first, so the plan isn't decided by join order.
+ */
+function balancedPlan(
+  state: LobbyState,
+  unplaced: Player[],
+  order: TeamId[],
+  ctx: Ctx,
+): Map<PlayerId, TeamId> {
+  const teams = order.map((id) => {
+    const members = state.teams[id]?.memberIds ?? [];
+    return {
+      id,
+      size: members.length,
+      sum: members.reduce((n, m) => n + points(state.players[m]), 0),
+      slots: 0,
+      picks: [] as Player[],
+    };
+  });
+  // Hand out the open seats in the order the wheel will fill them: the
+  // smallest team, ties rotating on from the team just filled.
+  for (let i = 0, next = 0; i < unplaced.length; i++) {
+    const rotation = [...teams.slice(next), ...teams.slice(0, next)];
+    const smallest = rotation.reduce((best, t) =>
+      t.size + t.slots < best.size + best.slots ? t : best,
+    );
+    smallest.slots += 1;
+    next = (teams.indexOf(smallest) + 1) % teams.length;
+  }
+  // Equal players in a random order (none without a random source, in tests).
+  const strongestFirst = shuffled(unplaced, ctx.rng).sort(
+    (a, b) => points(b) - points(a),
+  );
+  for (const player of strongestFirst) {
+    const target = teams
+      .filter((t) => t.picks.length < t.slots)
+      .reduce((best, t) => (t.sum < best.sum ? t : best));
+    target.picks.push(player);
+    target.sum += points(player);
+  }
+  // Swap pairs between teams while that brings the totals closer.
+  for (let round = 0, improved = true; improved && round < 50; round++) {
+    improved = false;
+    for (const x of teams)
+      for (const y of teams) {
+        if (x === y) continue;
+        for (let i = 0; i < x.picks.length; i++)
+          for (let j = 0; j < y.picks.length; j++) {
+            const d =
+              points(x.picks[i] as Player) - points(y.picks[j] as Player);
+            // Moving d points from x to y helps when x is ahead by more than d.
+            if (d > 0 && x.sum - y.sum > d) {
+              [x.picks[i], y.picks[j]] = [
+                y.picks[j] as Player,
+                x.picks[i] as Player,
+              ];
+              x.sum -= d;
+              y.sum += d;
+              improved = true;
+            }
+          }
+      }
+  }
+  const plan = new Map<PlayerId, TeamId>();
+  for (const t of teams) for (const p of t.picks) plan.set(p.id, t.id);
+  return plan;
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   ADD_TIME_MAX_MS,
   EMOTES,
   PHRASE_MAX_LEN,
+  SKILLS,
   TURN_MAX_MS,
   TURN_MIN_MS,
 } from "./constants";
@@ -30,7 +31,10 @@ export const ClientMessage = z.discriminatedUnion("type", [
     type: z.literal("join"),
     name: RawName,
     token: z.string().max(64).optional(),
+    skill: z.enum(SKILLS).optional(),
   }),
+  /** Change your own skill level (D51). */
+  z.strictObject({ type: z.literal("setSkill"), skill: z.enum(SKILLS) }),
   z.strictObject({
     type: z.literal("updateConfig"),
     config: ConfigSchema.partial(),
@@ -119,4 +123,9 @@ export type ServerMessage =
   /** Sent right before the server closes this socket on purpose. */
   | { type: "bye"; reason: ByeReason }
   /** Protocol version mismatch: the client should reload the page (§6.8). */
-  | { type: "reload" };
+  | { type: "reload" }
+  /**
+   * Sent on connect, before joining, so the name screen knows whether to ask
+   * for a level. Only that one setting: nothing else is public pre-join (D62).
+   */
+  | { type: "lobbyInfo"; balanceTeams: boolean };

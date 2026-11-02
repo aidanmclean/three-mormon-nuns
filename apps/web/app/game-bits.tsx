@@ -112,6 +112,19 @@ export function winnerText(view: LobbyView): string {
 const TALLY_MAX = 12;
 
 /**
+ * Stable keys for a list that can hold the same phrase more than once (D53):
+ * the text plus which copy it is.
+ */
+function repeatKeys(items: string[]) {
+  const seen = new Map<string, number>();
+  return items.map((text) => {
+    const n = (seen.get(text) ?? 0) + 1;
+    seen.set(text, n);
+    return { key: `${n}:${text}`, text };
+  });
+}
+
+/**
  * What a turn's review shows (D47): the guessed phrases when this viewer may
  * see them, otherwise one stamp per point so the screen still celebrates.
  */
@@ -127,10 +140,9 @@ export function TurnGuesses({
   if (turn.guessed)
     return (
       <ol className={big ? "guessed-list tv-guessed" : "m-guessed"}>
-        {turn.guessed.map((p) => (
-          // Phrases are unique within a lobby, so the text is a stable key.
-          <li key={p}>
-            <Icon name="check" /> {p}
+        {repeatKeys(turn.guessed).map(({ key, text }) => (
+          <li key={key}>
+            <Icon name="check" /> {text}
           </li>
         ))}
       </ol>

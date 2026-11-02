@@ -25,7 +25,7 @@ describe("writing phrases", () => {
     ).toBe(1);
     expect(checkInvariants(l.state)).toEqual([]);
   });
-  it("checks phase, membership, length, word count, duplicates and quota", () => {
+  it("checks phase, membership, length, word count and quota; repeats are fine", () => {
     const before = lobbyWith("Alex");
     expect(
       before.act(before.id("Alex"), { type: "submitPhrase", text: "No" }),
@@ -37,11 +37,16 @@ describe("writing phrases", () => {
         ok: false,
       });
     ok(l.act(alex, { type: "submitPhrase", text: "Flying toaster" }));
+    // The same phrase twice, or someone else's, is allowed (D53).
+    ok(l.act(l.id("Blair"), { type: "submitPhrase", text: "flying TOASTER" }));
+    ok(l.act(alex, { type: "submitPhrase", text: "Flying toaster" }));
+    ok(l.act(alex, { type: "submitPhrase", text: "Flying toaster" }));
     expect(
-      l.act(l.id("Blair"), { type: "submitPhrase", text: "flying TOASTER" }),
-    ).toMatchObject({ ok: false });
-    ok(l.act(alex, { type: "submitPhrase", text: "Invisible banana" }));
-    ok(l.act(alex, { type: "submitPhrase", text: "Dancing fridge" }));
+      Object.values(l.state.phrases).filter(
+        (p) => p.text.toLowerCase() === "flying toaster",
+      ),
+    ).toHaveLength(4);
+    expect(checkInvariants(l.state)).toEqual([]);
     expect(
       l.act(alex, { type: "submitPhrase", text: "Fourth phrase" }),
     ).toMatchObject({ ok: false });

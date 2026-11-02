@@ -8,10 +8,10 @@ export const PARTY = "lobby";
 export const CODE_LENGTH = 4;
 
 /** Bump on any breaking change to client/server messages or views (§6.8). */
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 
 /** Bump whenever the persisted LobbyState shape changes (§6.5). */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 /** Fixed by the game rules (§1.2). */
 export const ROUNDS = 3;
@@ -45,6 +45,10 @@ export const TURN_COUNTDOWN_MS = 3_000;
 export const ADD_TIME_MAX_MS = 60_000;
 export const TURN_MIN_MS = 1_000;
 export const TURN_MAX_MS = 10 * 60_000;
+/** How much a player has played, picked when they join (D51). */
+export const SKILLS = ["noob", "intermediate", "expert"] as const;
+/** Weights the wheel balances teams by (D51). */
+export const SKILL_POINTS = { noob: 1, intermediate: 2, expert: 3 } as const;
 /** Reactions anyone can send; shown on the host screen (D31). */
 export const EMOTES = [
   "laugh",

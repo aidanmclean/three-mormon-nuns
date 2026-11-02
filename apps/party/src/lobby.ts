@@ -87,6 +87,12 @@ export class Lobby extends Server<Env> {
       return;
     }
     conn.setState({ playerId: null, screen: false, connectedAt: Date.now() });
+    // The name screen asks for a level only if the lobby balances by it (D62).
+    if (this.lobby)
+      this.send(conn, {
+        type: "lobbyInfo",
+        balanceTeams: this.lobby.config.balanceTeams,
+      });
   }
 
   async onMessage(conn: Connection<SocketState>, message: WSMessage) {
@@ -119,13 +125,16 @@ export class Lobby extends Server<Env> {
     const playerId = conn.state?.playerId ?? null;
     if (playerId) this.lastSeen.set(playerId, Date.now());
 
-    // The host screen only displays the game; the game master controls it (D18).
+    // The host screen only displays the game; the game master controls it
+    // (D18). Its one control: picking a new GM if theirs is gone (D52).
     if (conn.state?.screen) {
-      return this.sendError(
-        conn,
-        "FORBIDDEN",
-        "The host screen can't do that.",
-      );
+      if (msg.type !== "setGamemaster" || !this.lobby)
+        return this.sendError(
+          conn,
+          "FORBIDDEN",
+          "The host screen can't do that.",
+        );
+      return this.transition(msg, conn);
     }
     if (playerId && (msg.type === "create" || msg.type === "screen")) {
       return this.sendError(
@@ -192,8 +201,11 @@ export class Lobby extends Server<Env> {
     const lobby = this.lobby;
     if (!lobby) return;
     const actorId = from?.state?.playerId ?? null;
+    const screen = from?.state?.screen === true;
     await this.commit(
-      this.guard(() => reduce(lobby, action, this.ctxFor(actorId))),
+      this.guard(() =>
+        reduce(lobby, action, { ...this.ctxFor(actorId), screen }),
+      ),
       from,
     );
   }
@@ -309,7 +321,7 @@ export class Lobby extends Server<Env> {
       actorId,
       now: Date.now(),
       newId: () => crypto.randomUUID(),
-      rng: Math.random,
+      rng: secureRandom,
     };
   }
 
@@ -446,4 +458,12 @@ export class Lobby extends Server<Env> {
   private sendError(conn: Connection, code: ErrorCode, message: string) {
     this.send(conn, { type: "error", code, message });
   }
+}
+
+/**
+ * A uniform number in [0, 1) from the platform's cryptographic generator,
+ * for wheel draws and phrase shuffles (D58).
+ */
+function secureRandom(): number {
+  return (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) / 2 ** 32;
 }

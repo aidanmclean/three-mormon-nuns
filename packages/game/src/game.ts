@@ -5,6 +5,7 @@ import {
   TURN_MAX_MS,
   TURN_MIN_MS,
 } from "./constants";
+import { shuffled } from "./random";
 import type { Action, Ctx, Result } from "./reducer";
 import type {
   Game,
@@ -77,13 +78,14 @@ function freshTurn(
   };
 }
 
+/** In the rotation: on a team and not waiting. Offline players keep their turn (D54). */
 const canPlay = (p: Player | undefined): p is Player =>
-  p?.status === "active" && !p.waiting && !!p.teamId;
+  !!p && !p.waiting && !!p.teamId;
 
 /**
  * Rotation (D13): teams take turns in teamOrder; each team cycles through its
- * own members. Offline players are skipped, and the same team plays with its
- * next connected member (Q1); a team with nobody connected is skipped.
+ * own members. Nobody is passed over for being offline (D54): the GM waits
+ * for them or skips them (D41).
  * A player owed a turn after swapping (D41) plays before their team's
  * rotation continues, without moving it on; `exclude` passes over the player
  * who is swapping out.
@@ -132,12 +134,13 @@ function prepare(
   return { ...game, turn: null };
 }
 
-/** A random phrase from the pile that hasn't been shown this turn. */
-function draw(game: Game, seen: string[], ctx: Ctx): string | null {
-  const options = game.pile.filter((id) => !seen.includes(id));
-  if (options.length === 0) return null;
-  const random = ctx.rng ?? Math.random;
-  return options[Math.floor(random() * options.length)] ?? null;
+/**
+ * The next phrase this turn: the first in the pile not shown yet. The pile is
+ * shuffled whenever a turn starts, so each describer gets a fresh random
+ * order (D58).
+ */
+function draw(game: Game, seen: string[]): string | null {
+  return game.pile.find((id) => !seen.includes(id)) ?? null;
 }
 
 /** Time left on the clock at `now`, never negative. */
@@ -307,7 +310,7 @@ export function playerGameAction(
       const cursor = turn.cursor + 1;
       let seen = turn.seen;
       if (cursor >= seen.length) {
-        const nextId = current.game ? draw(current.game, seen, ctx) : null;
+        const nextId = current.game ? draw(current.game, seen) : null;
         if (nextId) seen = [...seen, nextId];
       }
       const updated = withTurn(current, {
@@ -359,6 +362,24 @@ export function gmGameAction(
     return done(enterTurnReady(state));
   }
   if (action.type === "restartPrevTurn") {
+    // In review the turn on screen hasn't counted yet, so the GM can replay
+    // it straight away: same player, chosen time, nothing banked (D61).
+    if (state.phase === "turnReview" && game.turn) {
+      const t = game.turn;
+      return done({
+        ...state,
+        phase: "turnReady",
+        game: {
+          ...game,
+          turn: freshTurn(
+            t.playerId,
+            t.teamId,
+            clampTime(action.ms),
+            t.carried,
+          ),
+        },
+      });
+    }
     const p = game.previous;
     if (!p || !["turnReady", "roundIntro", "results"].includes(state.phase))
       return fail("INVALID", "There's no previous turn to restart.");
@@ -391,8 +412,17 @@ export function gmGameAction(
         return fail("WRONG_PHASE", "There's no turn waiting to start.");
       let g = current.game ?? game;
       if (!g.turn) g = prepare(current, g, g.teamCursor, turnLength(current));
-      if (!g.turn) return fail("INVALID", "Nobody on a team is connected.");
-      const first = draw(g, [], ctx);
+      if (!g.turn) return fail("INVALID", "Nobody is on a team.");
+      // Their phone shows the phrases, so they have to be here (D54).
+      const describer = current.players[g.turn.playerId];
+      if (describer?.status !== "active")
+        return fail(
+          "INVALID",
+          `${describer?.name ?? "They"} isn't connected. Wait for them, or skip their turn.`,
+        );
+      // A new random order for every turn (D58).
+      const pile = shuffled(g.pile, ctx.rng);
+      const first = draw({ ...g, pile }, []);
       if (!first) return fail("INVALID", "The pile is empty.");
       const countdownEndsAt = ctx.now + TURN_COUNTDOWN_MS;
       const playerId = g.turn.playerId;
@@ -401,6 +431,7 @@ export function gmGameAction(
         phase: "turnActive",
         game: {
           ...g,
+          pile,
           // Their turn is happening, so nothing is owed any more (D41).
           owed: g.owed.filter((id) => id !== playerId),
           turn: {
@@ -431,6 +462,12 @@ export function gmGameAction(
     case "resumeTimer":
       if (current.phase !== "turnActive" || !turn?.paused)
         return fail("INVALID", "The clock isn't paused.");
+      // A dropped describer's clock waits for them (D54).
+      if (current.players[turn.playerId]?.status !== "active")
+        return fail(
+          "INVALID",
+          `${current.players[turn.playerId]?.name ?? "They"} isn't connected. The clock waits for them.`,
+        );
       return done(
         withTurn(current, {
           ...turn,
@@ -543,10 +580,10 @@ function proceed(state: LobbyState, game: Game, turn: Turn): LobbyState {
 }
 
 /**
- * GM, before a turn starts: whoever is up swaps with their next connected
- * teammate (washroom, or they'd rather go later). The teammate plays now with
- * the same time, and the player who swapped takes the team's next turn. It
- * never moves the turn to another team (D41).
+ * GM, before a turn starts: whoever is up swaps with their next teammate
+ * (washroom, a dead phone, or they'd rather go later). The teammate plays now
+ * with the same time, and the player who swapped takes the team's next turn.
+ * It never moves the turn to another team (D41, D54).
  */
 function skipTurn(state: LobbyState, game: Game): Result {
   const turn = game.turn;
@@ -561,7 +598,7 @@ function skipTurn(state: LobbyState, game: Game): Result {
     turn.playerId,
   );
   if (!next.turn || next.turn.teamId !== turn.teamId)
-    return fail("INVALID", "Nobody else on the team is connected to go first.");
+    return fail("INVALID", "Nobody else on the team can go first.");
   return done({
     ...state,
     game: {
@@ -635,9 +672,25 @@ export function normalizeGame(state: LobbyState, now: number): LobbyState {
   const turn = game.turn;
   if (turn) {
     const p = state.players[turn.playerId];
-    const gone =
-      p?.status !== "active" || p.waiting || p.teamId !== turn.teamId;
-    if (gone && current.phase === "turnActive") {
+    // Only leaving the team ends or replaces a turn; dropping offline doesn't
+    // (D54). A describer who drops mid-turn pauses the clock until the GM
+    // resumes it, so a locked phone doesn't burn their time.
+    const gone = !p || p.waiting || p.teamId !== turn.teamId;
+    if (
+      !gone &&
+      p.status !== "active" &&
+      current.phase === "turnActive" &&
+      !turn.paused &&
+      !timeUp(current, now)
+    ) {
+      current = withTurn(current, {
+        ...turn,
+        remainingMs: timeLeft(turn, now),
+        endsAt: null,
+        countdownEndsAt: null,
+        paused: true,
+      });
+    } else if (gone && current.phase === "turnActive") {
       current = toReview(current, "left", now);
     } else if (
       gone &&

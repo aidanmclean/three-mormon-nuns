@@ -39,7 +39,12 @@ const KINDS = [
 ] as const;
 
 const step = fc.record({
-  kind: fc.constantFrom(...KINDS),
+  // Every kind can come up; the core turn buttons a bit more often, so the
+  // loop really runs despite restarts, skips and offline describers (D54).
+  kind: fc.oneof(
+    { arbitrary: fc.constantFrom(...KINDS), weight: 4 },
+    { arbitrary: fc.constantFrom("startTurn", "next", "back"), weight: 1 },
+  ),
   who: fc.constantFrom("gm", "player", "random", "nobody"),
   pick: fc.nat(),
   ms: fc.integer({ min: -70_000, max: 70_000 }),

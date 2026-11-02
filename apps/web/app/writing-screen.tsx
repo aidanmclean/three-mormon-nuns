@@ -12,7 +12,7 @@ import {
   PhoneShell,
   PlayerName,
 } from "./phone";
-import { ManagePlayers } from "./players";
+import { PlayerList } from "./players";
 
 /** Writing phrases on a phone (D30, D39). */
 export function WritingScreen({
@@ -23,16 +23,24 @@ export function WritingScreen({
   send: (action: LobbyAction) => void;
 }) {
   const [text, setText] = useState("");
-  const [pendingText, setPendingText] = useState<string | null>(null);
+  // What was sent, and how many copies of it you had then: repeats are
+  // allowed (D53), so the field clears once there's one more.
+  const [sent, setSent] = useState<{ text: string; copies: number } | null>(
+    null,
+  );
+  const pendingText = sent?.text ?? null;
+  const copiesOf = (raw: string) =>
+    view.ownPhrases.filter((p) => p.text === cleanName(raw)).length;
   useEffect(() => {
-    if (
-      pendingText &&
-      view.ownPhrases.some((p) => p.text === cleanName(pendingText))
-    ) {
-      setText((current) => (current === pendingText ? "" : current));
-      setPendingText(null);
+    if (!sent) return;
+    const copies = view.ownPhrases.filter(
+      (p) => p.text === cleanName(sent.text),
+    ).length;
+    if (copies > sent.copies) {
+      setText((current) => (current === sent.text ? "" : current));
+      setSent(null);
     }
-  }, [view.ownPhrases, pendingText]);
+  }, [view.ownPhrases, sent]);
   // A backdoor code never becomes a phrase (D48); clear it once it opens.
   const unlocked = view.backdoors?.length ?? 0;
   const [seenUnlocked, setSeenUnlocked] = useState(unlocked);
@@ -40,7 +48,7 @@ export function WritingScreen({
     if (unlocked === seenUnlocked) return;
     if (unlocked > seenUnlocked && pendingText) {
       setText((current) => (current === pendingText ? "" : current));
-      setPendingText(null);
+      setSent(null);
     }
     setSeenUnlocked(unlocked);
   }, [unlocked, seenUnlocked, pendingText]);
@@ -154,7 +162,7 @@ export function WritingScreen({
               onSubmit={(e) => {
                 e.preventDefault();
                 send({ type: "submitPhrase", text });
-                setPendingText(text);
+                setSent({ text, copies: copiesOf(text) });
               }}
             >
               <input
@@ -218,29 +226,48 @@ export function WritingScreen({
         </section>
       )}
 
-      <Fold title="Everyone" hint={`${ready} / ${active.length} ready`}>
-        <ul className="m-list">
-          {writers.map((p) => (
-            <li key={p.id}>
-              <div className="m-row">
-                <Avatar player={p} />
-                <PlayerName
-                  player={p}
-                  you={p.id === view.you}
-                  showCavan={amGm}
-                />
+      {/* The GM gets one list: everyone's progress plus the player menu. */}
+      <Fold
+        title="Everyone"
+        hint={`${ready} / ${active.length} ready`}
+        open={
+          amGm && view.players.some((p) => p.waiting && p.status === "active")
+        }
+      >
+        {amGm ? (
+          <PlayerList
+            view={view}
+            send={send}
+            cavanEditable
+            placeable
+            extra={(p) =>
+              p.teamId && !p.waiting ? (
                 <Pips
                   done={p.approvedCount}
                   pending={p.phraseCount - p.approvedCount}
                   quota={quota}
                 />
-              </div>
-            </li>
-          ))}
-        </ul>
+              ) : null
+            }
+          />
+        ) : (
+          <ul className="m-list">
+            {writers.map((p) => (
+              <li key={p.id}>
+                <div className="m-row">
+                  <Avatar player={p} />
+                  <PlayerName player={p} you={p.id === view.you} />
+                  <Pips
+                    done={p.approvedCount}
+                    pending={p.phraseCount - p.approvedCount}
+                    quota={quota}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </Fold>
-
-      {amGm && <ManagePlayers view={view} send={send} />}
     </PhoneShell>
   );
 }

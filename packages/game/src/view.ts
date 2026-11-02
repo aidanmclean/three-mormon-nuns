@@ -6,6 +6,7 @@ import type {
   Phase,
   PhraseStatus,
   PlayerId,
+  Skill,
   Team,
   TeamId,
   Turn,
@@ -24,6 +25,9 @@ export interface PlayerView {
   phraseCount: number;
   /** Phrases that will go in the pile. */
   approvedCount: number;
+  /** Self-reported experience (D51). */
+  /** Only for the player themselves and the GM; null for everyone else (D59). */
+  skill: Skill | null;
 }
 
 export interface OwnPhraseView {
@@ -133,6 +137,7 @@ export function viewFor(state: LobbyState, viewer: PlayerId | null): LobbyView {
             ).length
           : approvedCount,
         approvedCount,
+        skill: knows ? p.skill : null,
       };
     });
   return {

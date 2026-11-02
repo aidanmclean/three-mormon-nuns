@@ -80,32 +80,71 @@ export function Settings({
           </div>
         );
       })}
-      <div className="setting-row">
-        <span className="setting-index eyebrow">0{FIELDS.length + 1}</span>
-        <div className="setting-copy">
-          <label htmlFor="setting-showGuessed">Show guessed phrases</label>
-          {!compact && <p>List them for everyone after each turn.</p>}
-        </div>
-        {onChange ? (
-          <button
-            type="button"
-            role="switch"
-            id="setting-showGuessed"
-            aria-checked={config.showGuessed}
-            className="setting-switch"
-            onClick={() => onChange({ showGuessed: !config.showGuessed })}
-          >
-            <span className="setting-switch-knob" aria-hidden />
-            <span className="setting-switch-text">
-              {config.showGuessed ? "On" : "Off"}
-            </span>
-          </button>
-        ) : (
-          <span className="setting-value">
-            {config.showGuessed ? "On" : "Off"}
-          </span>
-        )}
+      <SwitchRow
+        index={FIELDS.length + 1}
+        name="showGuessed"
+        label="Show guessed phrases"
+        help="List them for everyone after each turn."
+        config={config}
+        compact={compact}
+        onChange={onChange}
+      />
+      <SwitchRow
+        index={FIELDS.length + 2}
+        name="balanceTeams"
+        label="Balance teams by skill"
+        help="The wheel evens out players' levels. Off, it's completely random."
+        config={config}
+        compact={compact}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+/** An on/off house rule (D47, D58). */
+function SwitchRow({
+  index,
+  name,
+  label,
+  help,
+  config,
+  compact,
+  onChange,
+}: {
+  index: number;
+  name: "showGuessed" | "balanceTeams";
+  label: string;
+  help: string;
+  config: Config;
+  compact: boolean;
+  onChange?: (config: Partial<Config>) => void;
+}) {
+  const on = config[name];
+  return (
+    <div className="setting-row">
+      <span className="setting-index eyebrow">
+        {String(index).padStart(2, "0")}
+      </span>
+      <div className="setting-copy">
+        <label htmlFor={`setting-${name}`}>{label}</label>
+        {!compact && <p>{help}</p>}
       </div>
+      {onChange ? (
+        <button
+          type="button"
+          role="switch"
+          id={`setting-${name}`}
+          aria-checked={on}
+          className="setting-switch"
+          onClick={() => onChange({ [name]: !on })}
+        >
+          <span className="setting-switch-knob" aria-hidden />
+          <span className="setting-switch-text">{on ? "On" : "Off"}</span>
+        </button>
+      ) : (
+        <span className="setting-value">{on ? "On" : "Off"}</span>
+      )}
     </div>
   );
 }

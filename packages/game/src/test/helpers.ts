@@ -59,9 +59,21 @@ export function lobbyWith(...names: string[]) {
     tick(ms: number) {
       now += ms;
     },
-    /** Runs an action as `actor` against a frozen state, so any mutation throws. */
-    act(actor: PlayerId | null, action: Action, rng?: () => number): Result {
-      const result = reduce(deepFreeze(state), action, { ...ctx(actor), rng });
+    /**
+     * Runs an action as `actor` against a frozen state, so any mutation
+     * throws. `extra.screen` sends it as the host screen (D52).
+     */
+    act(
+      actor: PlayerId | null,
+      action: Action,
+      rng?: () => number,
+      extra: Partial<Ctx> = {},
+    ): Result {
+      const result = reduce(deepFreeze(state), action, {
+        ...ctx(actor),
+        rng,
+        ...extra,
+      });
       if (result.ok) state = result.state;
       return result;
     },

@@ -1,6 +1,6 @@
 "use client";
 
-import type { LobbyView, PlayerView } from "@tmn/game";
+import { type LobbyView, type PlayerView, SKILLS, type Skill } from "@tmn/game";
 import type { ReactNode } from "react";
 import { Logo } from "./brand";
 import { Icon } from "./icons";
@@ -23,7 +23,7 @@ export function PhoneShell({
   const teamIndex = view.teams.findIndex((t) => t.id === me?.teamId);
   const team = view.teams[teamIndex];
   return (
-    <div className="m-app">
+    <div className="m-app" data-turn-team={turnTeamIndex(view)}>
       {/* One bar for who you are and the room (D49). No phase label: each
           screen's own heading says where the game is (D50). */}
       <header className="m-bar">
@@ -62,6 +62,75 @@ export function PhoneShell({
   );
 }
 
+/**
+ * While someone is up (from "up next" through review), the whole screen takes
+ * their team's colour (D56). Undefined otherwise.
+ */
+export function turnTeamIndex(view: LobbyView): number | undefined {
+  const teamId = view.game?.turn?.teamId;
+  if (
+    !teamId ||
+    !["turnReady", "turnActive", "turnReview"].includes(view.phase)
+  )
+    return undefined;
+  const index = view.teams.findIndex((t) => t.id === teamId);
+  return index < 0 ? undefined : index % 4;
+}
+
+export const SKILL_LABELS: Record<Skill, { title: string; detail: string }> = {
+  noob: { title: "Noob", detail: "Never played" },
+  intermediate: {
+    title: "Intermediate",
+    detail: "Played before, knows the rules",
+  },
+  expert: { title: "Expert", detail: "Played a lot" },
+};
+
+/** How much you've played (D51): stacked with details, or a compact row. */
+export function SkillPicker({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: Skill;
+  onChange: (skill: Skill) => void;
+  compact?: boolean;
+}) {
+  return (
+    <fieldset className={`m-seg ${compact ? "m-seg-3" : "m-seg-stack"}`}>
+      <legend>{compact ? "Your level" : "How much have you played?"}</legend>
+      {SKILLS.map((skill) => (
+        <label
+          key={skill}
+          className={value === skill ? "is-selected" : undefined}
+        >
+          <input
+            type="radio"
+            name="skill"
+            value={skill}
+            checked={value === skill}
+            onChange={() => onChange(skill)}
+          />
+          <strong>{SKILL_LABELS[skill].title}</strong>
+          {!compact && <span>{SKILL_LABELS[skill].detail}</span>}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+/** Levels show only on the GM's lists, and only when the wheel balances by them (D59, D62). */
+export function seesSkill(view: LobbyView): boolean {
+  const me = view.players.find((p) => p.id === view.you);
+  return !!me?.isGamemaster && view.config.balanceTeams;
+}
+
+/** A small label with someone's level, for the GM's lists (D59). */
+export function SkillTag({ skill }: { skill: Skill | null | undefined }) {
+  if (!skill) return null;
+  return <span className="m-skill">{SKILL_LABELS[skill].title}</span>;
+}
+
 /** A coloured circle with the player's initial. */
 export function Avatar({
   player,
@@ -81,30 +150,44 @@ export function Avatar({
   );
 }
 
-/** A player's name with role icons, for lists. */
+/**
+ * A player's name with role icons, for lists. Small tags ("you", captain,
+ * level, offline) sit beside the name; `stacked` puts them on a line under
+ * it, for lists where every row has a level (D63).
+ */
 export function PlayerName({
   player,
   you = false,
   showCavan = false,
+  stacked = false,
+  tags,
 }: {
   player: PlayerView;
   you?: boolean;
   /** Only the GM's screen marks Cavan (D40). */
   showCavan?: boolean;
+  stacked?: boolean;
+  tags?: ReactNode;
 }) {
+  const offline = player.status === "inactive";
   return (
     <span
-      className={`m-name ${player.status === "inactive" ? "is-offline" : ""}`}
+      className={`m-name ${stacked ? "m-name-stacked" : ""} ${offline ? "is-offline" : ""}`}
     >
-      <span className="m-name-text">{player.name}</span>
-      {player.isGamemaster && <Icon name="crown" label="Game master" />}
-      {showCavan && player.isCavan && <Icon name="magnifier" label="Cavan" />}
-      {you && <span className="m-you">you</span>}
-      {player.status === "inactive" && (
-        <span className="m-off">
-          <Icon name="wifiOff" /> offline
-        </span>
-      )}
+      <span className="m-name-line">
+        <span className="m-name-text">{player.name}</span>
+        {player.isGamemaster && <Icon name="crown" label="Game master" />}
+        {showCavan && player.isCavan && <Icon name="magnifier" label="Cavan" />}
+      </span>
+      <span className="m-name-meta">
+        {you && <span className="m-you">you</span>}
+        {tags}
+        {offline && (
+          <span className="m-off">
+            <Icon name="wifiOff" /> offline
+          </span>
+        )}
+      </span>
     </span>
   );
 }

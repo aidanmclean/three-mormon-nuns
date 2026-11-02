@@ -5,6 +5,7 @@ import {
   PHRASE_MAX_LEN,
   ROUNDS,
   SCHEMA_VERSION,
+  SKILLS,
   TURN_MAX_MS,
 } from "./constants";
 import { inGame } from "./game";
@@ -51,10 +52,11 @@ export function checkInvariants(state: LobbyState): string[] {
       p.backdoors.some((b) => !BACKDOOR_IDS.includes(b))
     )
       err(`invalid backdoors for ${id}`);
+    if (!SKILLS.includes(p.skill)) err(`invalid skill for ${id}`);
   }
 
   // The GM is the one in control (D18): there must be one as soon as anyone
-  // has joined, and they must be connected whenever anyone is.
+  // has joined. They may be offline; the role stays with them (D52).
   const { gamemasterId } = state.roles;
   const gm = gamemasterId === null ? undefined : state.players[gamemasterId];
   if (gamemasterId !== null && !gm) err("game master missing");
@@ -65,10 +67,6 @@ export function checkInvariants(state: LobbyState): string[] {
 
   const { cavanId } = state.roles;
   if (cavanId !== null && !state.players[cavanId]) err("cavan missing");
-
-  const anyActive = players.some(([, p]) => p.status === "active");
-  if (anyActive && gm?.status !== "active")
-    err("game master inactive while others are active");
 
   if (
     new Set(state.teamOrder).size !== state.teamOrder.length ||
@@ -164,7 +162,6 @@ export function checkInvariants(state: LobbyState): string[] {
     if (state.draft?.stage === "spinning" && state.draft.nextAt !== draw.endsAt)
       err("spin deadline mismatch");
   }
-  const phraseKeys = new Set<string>();
   const playing = inGame(state.phase);
   for (const [id, phrase] of Object.entries(state.phrases)) {
     if (phrase.id !== id) err("invalid phrase id");
@@ -192,9 +189,6 @@ export function checkInvariants(state: LobbyState): string[] {
       phrase.text.split(/\s+/u).length > state.config.maxWordsPerPhrase
     )
       err("invalid phrase text");
-    const key = nameKey(phrase.text);
-    if (phraseKeys.has(key)) err("duplicate phrase");
-    phraseKeys.add(key);
   }
   for (const [id] of players)
     if (

@@ -33,6 +33,10 @@ export function GameBoard({
   const turn = game.turn;
   const up = playerName(view, turn?.playerId);
   const upTeam = teamName(view, turn?.teamId);
+  // Offline players keep their turn; it waits for them (D54).
+  const upOffline =
+    !!turn &&
+    view.players.find((p) => p.id === turn.playerId)?.status === "inactive";
   const ready = view.players.filter(
     (p) => p.teamId && !p.waiting && p.status === "active",
   );
@@ -83,6 +87,9 @@ export function GameBoard({
                       Time carried over from the last round
                     </p>
                   )}
+                  {upOffline && (
+                    <p className="tv-paused">Waiting for {up} to reconnect</p>
+                  )}
                 </>
               )}
               {pile}
@@ -115,7 +122,11 @@ export function GameBoard({
               <p className="tv-points">
                 <strong className="tv-points-n">{turn.points}</strong> guessed
               </p>
-              {turn.paused && <p className="tv-paused">Paused</p>}
+              {turn.paused && (
+                <p className="tv-paused">
+                  {upOffline ? `Paused: ${up} lost connection` : "Paused"}
+                </p>
+              )}
             </>
           )}
 

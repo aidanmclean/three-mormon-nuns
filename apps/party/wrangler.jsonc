@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "three-mormon-nuns-party",
+  "name": "three-mormon-nuns",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-20",
   // Listen on all interfaces so phones on the LAN can reach the dev worker.

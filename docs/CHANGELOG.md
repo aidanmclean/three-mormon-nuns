@@ -4,6 +4,7 @@ Newest first. One line per change, linking the decision (`D<n>` in [ARCHITECTURE
 
 ## 2026-11-01
 
+- **Fixed (docs):** the README's deploy command for the lobby Worker is `pnpm --filter @tmn/party run deploy`. Without `run`, pnpm runs its own built-in `deploy` command and fails with `ERR_PNPM_INVALID_DEPLOY_TARGET`.
 - **Changed:** the phone's top bar no longer shows the phase ("Lobby", "Teams", "Writing", the round, "Join"). It's just the logo mark, you (avatar, name, crown, team) and the room code ([D50](./ARCHITECTURE.md#d50-no-phase-label-in-the-phones-top-bar)).
 - **Changed:** the phone's top bar now holds you, the game and the room in one row: logo mark, your avatar and name (crown for the GM), your team as a pill in its colour, and the room code. The separate strip under the bar is gone ([D49](./ARCHITECTURE.md#d49-one-phone-top-bar-with-you-in-it-no-heading-while-the-wheel-spins)).
 - **Changed:** no "Wheel of names" heading or explanation while the wheel spins, on phones or the TV. The wheel and teams get the space.

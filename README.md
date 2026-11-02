@@ -48,18 +48,18 @@ No Cloudflare account is needed for local development; Wrangler runs Durable Obj
 
 ## Scripts
 
-| Command                             | Does                                                              |
-| ----------------------------------- | ----------------------------------------------------------------- |
-| `pnpm dev`                          | Run web + party dev servers in parallel                           |
-| `pnpm build`                        | Production build of the web app                                   |
-| `pnpm test`                         | Unit tests (Vitest)                                               |
-| `pnpm typecheck`                    | `tsc --noEmit` in every package                                   |
-| `pnpm lint`                         | Biome lint + format check                                         |
-| `pnpm format`                       | Biome auto-fix + format                                           |
-| `pnpm --filter @tmn/party types`    | Regenerate the Worker `Env` types after editing `wrangler.jsonc`  |
-| `pnpm --filter @tmn/party deploy`   | Deploy the lobby Worker to Cloudflare                             |
-| `pnpm --filter @tmn/party e2e`      | WebSocket end-to-end checks against the running dev worker        |
-| `pnpm --filter @tmn/party e2e:game` | Plays a whole game over WebSockets against the running dev worker |
+| Command                               | Does                                                              |
+| ------------------------------------- | ----------------------------------------------------------------- |
+| `pnpm dev`                            | Run web + party dev servers in parallel                           |
+| `pnpm build`                          | Production build of the web app                                   |
+| `pnpm test`                           | Unit tests (Vitest)                                               |
+| `pnpm typecheck`                      | `tsc --noEmit` in every package                                   |
+| `pnpm lint`                           | Biome lint + format check                                         |
+| `pnpm format`                         | Biome auto-fix + format                                           |
+| `pnpm --filter @tmn/party types`      | Regenerate the Worker `Env` types after editing `wrangler.jsonc`  |
+| `pnpm --filter @tmn/party run deploy` | Deploy the lobby Worker to Cloudflare                             |
+| `pnpm --filter @tmn/party e2e`        | WebSocket end-to-end checks against the running dev worker        |
+| `pnpm --filter @tmn/party e2e:game`   | Plays a whole game over WebSockets against the running dev worker |
 
 ## Layout
 
@@ -80,4 +80,4 @@ CLAUDE.md               imports AGENTS.md for Claude Code
 ## Deploying
 
 - **Web:** import the repo into Vercel with the root directory set to `apps/web`. Set `NEXT_PUBLIC_PARTY_HOST` to the Worker's host, e.g. `three-mormon-nuns-party.<account>.workers.dev`.
-- **Lobby server:** run `pnpm --filter @tmn/party deploy`. This needs `wrangler login` once. The Workers free plan covers Durable Objects.
+- **Lobby server:** run `pnpm --filter @tmn/party run deploy`. This needs `wrangler login` once. The Workers free plan covers Durable Objects.

@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@tmn/game": "workspace:*",
-    "next": "16.4.3",
+    "next": "16.4.5",
     "partysocket": "^1.3.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
